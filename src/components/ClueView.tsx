@@ -12,6 +12,7 @@ export function ClueView({ state, active, dispatch }: Props) {
   const clue = category.clues[active.clueIndex];
   const selected = state.players.find((p) => p.id === active.selectedPlayerId);
   const everyoneWrong = active.wrongPlayerIds.length === state.players.length;
+  const canCancel = !active.answerRevealed && active.wrongPlayerIds.length === 0;
 
   return (
     <div className="clue">
@@ -54,9 +55,17 @@ export function ClueView({ state, active, dispatch }: Props) {
             <span className="judging-label">
               {everyoneWrong ? 'Everyone has answered.' : 'Who buzzed? Click a player below or press their number.'}
             </span>
-            <button className="btn" onClick={() => dispatch({ type: 'noOne' })}>
-              No one <kbd>Esc</kbd>
-            </button>
+            {active.answerRevealed ? (
+              <button className="btn" onClick={() => dispatch({ type: 'noOne' })}>
+                No one <kbd>Esc</kbd>
+              </button>
+            ) : canCancel ? (
+              <button className="btn btn-ghost" onClick={() => dispatch({ type: 'cancelTile' })}>
+                ← Back to board <kbd>Esc</kbd>
+              </button>
+            ) : (
+              <span className="hint">Reveal the answer to close with no one scoring.</span>
+            )}
           </>
         )}
       </div>

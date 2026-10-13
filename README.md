@@ -17,10 +17,10 @@ npm run build   # type-check + production build
 
 | Key | Action |
 |---|---|
-| `Space` | Reveal the answer; once revealed (and no player is selected), close the clue |
+| `Space` | Reveal the answer |
 | `1`–`6` | Select the player who buzzed |
 | `C` / `W` | Mark the selected player correct / wrong |
-| `Esc` | Unselect the player; if none is selected, close the clue with no one scoring |
+| `Esc` | Unselect the player. Otherwise: before the answer is shown, go back to the board (the tile stays open, e.g. after a mis-click); after the answer is shown, close the clue with no one scoring |
 | `Ctrl+Z` | Undo (any number of steps) |
 | `F` | Toggle fullscreen |
 

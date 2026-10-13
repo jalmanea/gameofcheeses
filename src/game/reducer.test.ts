@@ -71,6 +71,7 @@ describe('selecting a tile', () => {
     const played = run(
       newGame(),
       { type: 'selectTile', categoryIndex: 0, clueIndex: 0 },
+      { type: 'revealAnswer' },
       { type: 'noOne' },
     );
     expect(gameReducer(played, { type: 'selectTile', categoryIndex: 0, clueIndex: 0 })).toBe(played);
@@ -135,15 +136,37 @@ describe('judging', () => {
 
   it('"no one" closes the tile with no score or control change', () => {
     const before = open(newGame());
-    const s = run(before, { type: 'noOne' });
+    const s = run(before, { type: 'revealAnswer' }, { type: 'noOne' });
     expect(s.players).toEqual(before.players);
     expect(s.controlPlayerId).toBe('p1');
     expect(s.tiles[1][1].played).toBe(true);
     expect(s.phase).toBe('board');
   });
 
+  it('"no one" is ignored until the answer has been shown', () => {
+    const s = open(newGame());
+    expect(gameReducer(s, { type: 'noOne' })).toBe(s);
+  });
+
+  it('cancelling before the reveal returns to the board with the tile still open', () => {
+    const before = newGame();
+    const s = run(open(before), { type: 'cancelTile' });
+    expect(s.phase).toBe('board');
+    expect(s.active).toBeNull();
+    expect(s.tiles[1][1].played).toBe(false);
+    expect(s.players).toEqual(before.players);
+    expect(s.controlPlayerId).toBe(before.controlPlayerId);
+  });
+
+  it('cancelling is not allowed after the reveal or after a wrong answer', () => {
+    const revealed = run(open(newGame()), { type: 'revealAnswer' });
+    expect(gameReducer(revealed, { type: 'cancelTile' })).toBe(revealed);
+    const wrong = run(open(newGame()), { type: 'selectPlayer', playerId: 'p1' }, { type: 'markWrong' });
+    expect(gameReducer(wrong, { type: 'cancelTile' })).toBe(wrong);
+  });
+
   it('"no one" after wrong answers keeps the penalties', () => {
-    const s = run(open(newGame()), { type: 'selectPlayer', playerId: 'p1' }, { type: 'markWrong' }, { type: 'noOne' });
+    const s = run(open(newGame()), { type: 'selectPlayer', playerId: 'p1' }, { type: 'markWrong' }, { type: 'revealAnswer' }, { type: 'noOne' });
     expect(score(s, 'p1')).toBe(-400);
     expect(s.tiles[1][1].played).toBe(true);
   });
@@ -174,7 +197,7 @@ describe('manual adjustment and control', () => {
 describe('game end', () => {
   it('goes to results after the last tile closes', () => {
     let s = createGame(TINY_BOARD, PLAYERS);
-    s = run(s, { type: 'selectTile', categoryIndex: 0, clueIndex: 0 }, { type: 'noOne' });
+    s = run(s, { type: 'selectTile', categoryIndex: 0, clueIndex: 0 }, { type: 'revealAnswer' }, { type: 'noOne' });
     expect(s.phase).toBe('board');
     s = run(s, { type: 'selectTile', categoryIndex: 0, clueIndex: 1 }, { type: 'selectPlayer', playerId: 'p2' }, { type: 'markCorrect' });
     expect(s.phase).toBe('results');
@@ -183,7 +206,7 @@ describe('game end', () => {
 
   it('does not end the game after a wrong answer on the last tile', () => {
     let s = createGame(TINY_BOARD, PLAYERS);
-    s = run(s, { type: 'selectTile', categoryIndex: 0, clueIndex: 0 }, { type: 'noOne' });
+    s = run(s, { type: 'selectTile', categoryIndex: 0, clueIndex: 0 }, { type: 'revealAnswer' }, { type: 'noOne' });
     s = run(s, { type: 'selectTile', categoryIndex: 0, clueIndex: 1 }, { type: 'selectPlayer', playerId: 'p1' }, { type: 'markWrong' });
     expect(s.phase).toBe('clue');
   });
@@ -192,7 +215,7 @@ describe('game end', () => {
     let s = newGame();
     SAMPLE_BOARD.categories.forEach((cat, ci) =>
       cat.clues.forEach((_, ri) => {
-        s = run(s, { type: 'selectTile', categoryIndex: ci, clueIndex: ri }, { type: 'noOne' });
+        s = run(s, { type: 'selectTile', categoryIndex: ci, clueIndex: ri }, { type: 'revealAnswer' }, { type: 'noOne' });
       }),
     );
     expect(s.phase).toBe('results');
@@ -265,8 +288,10 @@ describe('undo history', () => {
     let s = createSession(createGame(TINY_BOARD, PLAYERS));
     for (const a of [
       { type: 'selectTile', categoryIndex: 0, clueIndex: 0 },
+      { type: 'revealAnswer' },
       { type: 'noOne' },
       { type: 'selectTile', categoryIndex: 0, clueIndex: 1 },
+      { type: 'revealAnswer' },
       { type: 'noOne' },
     ] as SessionAction[]) s = sessionReducer(s, a);
     expect(s.present.phase).toBe('results');

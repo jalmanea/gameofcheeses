@@ -91,6 +91,7 @@ export type GameAction =
   | { type: 'markCorrect' }
   | { type: 'markWrong' }
   | { type: 'noOne' }
+  | { type: 'cancelTile' }
   | { type: 'adjustScore'; playerId: string; delta: number }
   | { type: 'setControl'; playerId: string };
 

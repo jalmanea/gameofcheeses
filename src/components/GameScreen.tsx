@@ -58,8 +58,14 @@ export function GameScreen({ state, canUndo, dispatch, onNewGame }: Props) {
       <footer className="shortcuts">
         {state.phase === 'clue' ? (
           <>
-            <kbd>Space</kbd> reveal answer / close · <kbd>1</kbd>–<kbd>{state.players.length}</kbd> who buzzed ·{' '}
-            <kbd>C</kbd> correct · <kbd>W</kbd> wrong · <kbd>Esc</kbd> unselect / no one ·{' '}
+            <kbd>Space</kbd> reveal answer · <kbd>1</kbd>–<kbd>{state.players.length}</kbd> who buzzed ·{' '}
+            <kbd>C</kbd> correct · <kbd>W</kbd> wrong · <kbd>Esc</kbd>{' '}
+            {state.active?.selectedPlayerId
+              ? 'unselect'
+              : state.active?.answerRevealed
+                ? 'no one'
+                : 'back to board'}{' '}
+            ·{' '}
           </>
         ) : null}
         <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo · <kbd>F</kbd> fullscreen

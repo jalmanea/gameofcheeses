@@ -112,8 +112,17 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'noOne': {
-      if (!state.active) return state;
+      // The answer must be shown before the tile can close with no one scoring.
+      if (!state.active?.answerRevealed) return state;
       return closeActiveTile(state);
+    }
+
+    case 'cancelTile': {
+      // Back out of a tile picked by mistake: only before the answer is shown
+      // and before anyone has answered, so the tile can be played later.
+      const active = state.active;
+      if (!active || active.answerRevealed || active.wrongPlayerIds.length > 0) return state;
+      return { ...state, active: null, phase: 'board' };
     }
 
     case 'adjustScore': {

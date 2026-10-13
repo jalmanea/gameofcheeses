@@ -14,10 +14,11 @@ function isTyping(target: EventTarget | null): boolean {
 
 /**
  * Host keyboard shortcuts (shown on screen in the shortcut bar):
- *   Space      reveal the answer; once revealed (and nobody is selected), close the clue
+ *   Space      reveal the answer
  *   1–6        select the player who buzzed
  *   C / W      mark the selected player correct / wrong
- *   Esc        clear the selected player, otherwise close the clue (no one)
+ *   Esc        clear the selected player; otherwise, before the reveal, go back to the
+ *              board (tile stays open), and after the reveal, close the clue (no one)
  *   Ctrl+Z     undo
  *   F          fullscreen
  * Pass a null session to disable them (e.g. outside a game).
@@ -50,13 +51,10 @@ export function useHostKeys(session: GameSession | null, dispatch: (a: SessionAc
       const { phase, active, players } = s.present;
       if (phase !== 'clue' || !active) return;
 
-      if (key === ' ') {
-        if (!active.answerRevealed) return handled({ type: 'revealAnswer' });
-        // Don't skip past a player who is waiting for a verdict.
-        return handled(active.selectedPlayerId ? undefined : { type: 'noOne' });
-      }
+      if (key === ' ') return handled({ type: 'revealAnswer' });
       if (key === 'escape') {
-        return handled(active.selectedPlayerId ? { type: 'selectPlayer', playerId: null } : { type: 'noOne' });
+        if (active.selectedPlayerId) return handled({ type: 'selectPlayer', playerId: null });
+        return handled(active.answerRevealed ? { type: 'noOne' } : { type: 'cancelTile' });
       }
       if (key === 'c') return handled({ type: 'markCorrect' });
       if (key === 'w') return handled({ type: 'markWrong' });
