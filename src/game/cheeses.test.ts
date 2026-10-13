@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boardCheeses, placeCheeses, PLAYABLE_CHEESES } from './cheeses';
+import { boardCheeses, CHEESE_ORDER, placeCheeses } from './cheeses';
 import { canCancel, createGame, escapeAction, fetaSteal, gameReducer, maxWager } from './reducer';
 import { SAMPLE_BOARD } from './sampleBoard';
 import { timeLeft } from './timer';
@@ -57,8 +57,8 @@ describe('cheese placement', () => {
   });
 
   it('is deterministic for the same random source', () => {
-    const board = withCheeses({ randomCount: 3, pool: PLAYABLE_CHEESES });
-    expect(placeCheeses(board, PLAYABLE_CHEESES, seeded(7))).toEqual(placeCheeses(board, PLAYABLE_CHEESES, seeded(7)));
+    const board = withCheeses({ randomCount: 3, pool: CHEESE_ORDER });
+    expect(placeCheeses(board, CHEESE_ORDER, seeded(7))).toEqual(placeCheeses(board, CHEESE_ORDER, seeded(7)));
   });
 
   it('honours fixed tiles and keeps random cheeses off them', () => {
@@ -68,35 +68,37 @@ describe('cheese placement', () => {
     expect(allTiles(tiles).filter((t) => t.cheese === 'swiss')).toHaveLength(29);
   });
 
-  it('skips cheeses the host switched off and cheeses not playable yet', () => {
+  it('skips cheeses the host switched off', () => {
     const board = withCheeses({
       randomCount: 5,
-      pool: ['swiss', 'platter'],
+      pool: ['swiss', 'brie'],
       fixed: [
         { categoryIndex: 0, clueIndex: 0, cheese: 'gouda' },
         { categoryIndex: 0, clueIndex: 1, cheese: 'blue' },
       ],
     });
-    const tiles = placeCheeses(board, ['swiss', 'platter', 'blue'], seeded(5));
+    const tiles = placeCheeses(board, ['swiss', 'blue'], seeded(5));
     expect(tiles[0][0].cheese).toBeUndefined();
-    expect(tiles[0][1].cheese).toBeUndefined();
-    expect(allTiles(tiles).filter((t) => t.cheese).every((t) => t.cheese === 'swiss')).toBe(true);
+    expect(tiles[0][1].cheese).toBe('blue');
+    expect(allTiles(tiles).filter((t) => t.cheese)).toHaveLength(6);
+    expect(allTiles(tiles).filter((t) => t.cheese && t.cheese !== 'blue').every((t) => t.cheese === 'swiss')).toBe(true);
   });
 
   it('places nothing with an empty pool or a zero count, and caps at the free tiles', () => {
-    expect(allTiles(placeCheeses(withCheeses({ randomCount: 3, pool: [] }), PLAYABLE_CHEESES, seeded(1))).some((t) => t.cheese)).toBe(false);
+    expect(allTiles(placeCheeses(withCheeses({ randomCount: 3, pool: [] }), CHEESE_ORDER, seeded(1))).some((t) => t.cheese)).toBe(false);
     expect(allTiles(placeCheeses(withCheeses({ randomCount: 0, pool: ['swiss'] }), ['swiss'], seeded(1))).some((t) => t.cheese)).toBe(false);
     expect(allTiles(placeCheeses(withCheeses({ randomCount: 99, pool: ['swiss'] }), ['swiss'], seeded(1))).every((t) => t.cheese)).toBe(true);
   });
 
   it('lists the cheeses a board can use', () => {
-    const board = withCheeses({ randomCount: 2, pool: ['feta', 'wheel'], fixed: [{ categoryIndex: 0, clueIndex: 0, cheese: 'swiss' }] });
-    expect(boardCheeses(board)).toEqual(['swiss', 'feta']);
+    const board = withCheeses({ randomCount: 2, pool: ['feta', 'wheel', 'parmesan'], fixed: [{ categoryIndex: 0, clueIndex: 0, cheese: 'swiss' }] });
+    // Parmesan in the random pool is ignored: it's never random.
+    expect(boardCheeses(board)).toEqual(['swiss', 'feta', 'wheel']);
     expect(boardCheeses(withCheeses({ randomCount: 0, pool: ['feta'] }))).toEqual([]);
   });
 
   it('places no cheeses unless the game switches them on', () => {
-    const board = withCheeses({ randomCount: 5, pool: PLAYABLE_CHEESES });
+    const board = withCheeses({ randomCount: 5, pool: CHEESE_ORDER });
     expect(allTiles(createGame(board, PLAYERS).tiles).some((t) => t.cheese)).toBe(false);
   });
 });

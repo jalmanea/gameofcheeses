@@ -9,7 +9,7 @@ function category(name: string, pairs: [clue: string, answer: string][]): Catego
   };
 }
 
-/** Hardcoded board for milestone 1; replaced by the board library in milestone 2. */
+/** Seeds the board library, and can be added back from it. Shows off every cheese. */
 export const SAMPLE_BOARD: Board = {
   id: 'sample-board',
   title: 'Sample Board',
@@ -57,11 +57,46 @@ export const SAMPLE_BOARD: Board = {
       ['This opera by Bizet is set in Seville.', 'Carmen'],
     ]),
   ],
-  platterPrompts: [],
+  // Made-up survey results, for trying out the Cheese Platter.
+  platterPrompts: [
+    {
+      prompt: 'Name a cheese people put on pizza',
+      answers: [
+        { text: 'Mozzarella', points: 46 },
+        { text: 'Parmesan', points: 21 },
+        { text: 'Cheddar', points: 14 },
+        { text: 'Provolone', points: 9 },
+        { text: 'Ricotta', points: 6 },
+        { text: 'Gorgonzola', points: 4 },
+      ],
+    },
+    {
+      prompt: 'Name something you bring to a picnic',
+      answers: [
+        { text: 'Sandwiches', points: 34 },
+        { text: 'A blanket', points: 26 },
+        { text: 'Drinks', points: 15 },
+        { text: 'Fruit', points: 11 },
+        { text: 'Chips', points: 8 },
+        { text: 'A basket', points: 6 },
+      ],
+    },
+    {
+      prompt: 'Name a reason you might be late for work',
+      answers: [
+        { text: 'Traffic', points: 41 },
+        { text: 'Overslept', points: 29 },
+        { text: 'The kids', points: 12 },
+        { text: 'Car trouble', points: 10 },
+        { text: 'The weather', points: 8 },
+      ],
+    },
+  ],
   cheeseSettings: {
-    randomCount: 3,
-    pool: ['gouda', 'swiss', 'limburger', 'brie', 'mozzarella', 'feta'],
-    fixed: [],
+    randomCount: 4,
+    pool: ['gouda', 'swiss', 'limburger', 'brie', 'mozzarella', 'feta', 'blue', 'wheel', 'platter'],
+    // Aged Parmesan is never random, so the sample puts one in plain sight.
+    fixed: [{ categoryIndex: 2, clueIndex: 2, cheese: 'parmesan' }],
     platterPotMultiplier: 2,
   },
 };

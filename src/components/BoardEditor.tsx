@@ -9,11 +9,13 @@ import {
   MIN_CATEGORIES,
   MIN_ROWS,
   moveCategory,
+  PLATTER_POT_CHOICES,
   removeCategory,
   resetValues,
   rowCount,
   setCategoryName,
   setFixedCheese,
+  setPlatterPotMultiplier,
   setRandomCheeseCount,
   setRowCount,
   toggleCheeseInPool,
@@ -21,8 +23,9 @@ import {
   updateClue,
   validateBoard,
 } from '../boards/boardOps';
-import { CHEESE_ORDER, CHEESES, PLAYABLE_CHEESES } from '../game/cheeses';
+import { canBeRandom, CHEESE_ORDER, CHEESES } from '../game/cheeses';
 import type { Board, CheeseId } from '../game/types';
+import { PlatterEditor } from './PlatterEditor';
 
 interface Props {
   /** The board as last saved (or a new blank board). */
@@ -41,6 +44,7 @@ export function BoardEditor({ initial, isNew, onSave, onClose, onTestPlay }: Pro
   const [board, setBoard] = useState(initial);
   const [saved, setSaved] = useState(isNew ? null : initial);
   const [showCheeses, setShowCheeses] = useState(false);
+  const [view, setView] = useState<'clues' | 'platter'>('clues');
   const cs = board.cheeseSettings;
   const dirty = saved === null || JSON.stringify(board) !== JSON.stringify(saved);
   const rows = rowCount(board);
@@ -133,6 +137,13 @@ export function BoardEditor({ initial, isNew, onSave, onClose, onTestPlay }: Pro
         >
           🧀 Cheeses ({cs.randomCount} random{cs.fixed.length ? `, ${cs.fixed.length} fixed` : ''})
         </button>
+        <button
+          className={`btn btn-small${view === 'platter' ? ' btn-on' : ''}`}
+          aria-pressed={view === 'platter'}
+          onClick={() => setView((v) => (v === 'platter' ? 'clues' : 'platter'))}
+        >
+          🍽️ Platter prompts ({board.platterPrompts.length})
+        </button>
         <button className="btn btn-small btn-ghost" onClick={() => setBoard(resetValues(board))}>
           Reset values to 200, 400…
         </button>
@@ -169,12 +180,19 @@ export function BoardEditor({ initial, isNew, onSave, onClose, onTestPlay }: Pro
             <span>Picked from:</span>
             {CHEESE_ORDER.map((id) => {
               const c = CHEESES[id];
+              const on = cs.pool.includes(id);
+              // Aged Parmesan is never random (it can still be unticked if an imported file had it).
+              const off = !canBeRandom(id) && !on;
               return (
-                <label key={id} className={`pool-chip${c.playable ? '' : ' pool-chip-soon'}`} title={c.playable ? c.rule : 'Coming soon'}>
+                <label
+                  key={id}
+                  className={`pool-chip${off ? ' pool-chip-off' : ''}`}
+                  title={off ? `${c.name} is never random: put it on a clue with the clue's cheese menu` : c.rule}
+                >
                   <input
                     type="checkbox"
-                    disabled={!c.playable}
-                    checked={cs.pool.includes(id)}
+                    disabled={off}
+                    checked={on}
                     onChange={(e) => setBoard(toggleCheeseInPool(board, id, e.target.checked))}
                   />
                   {c.emoji} {c.name}
@@ -182,94 +200,114 @@ export function BoardEditor({ initial, isNew, onSave, onClose, onTestPlay }: Pro
               );
             })}
           </span>
+          <label className="stepper">
+            🍽️ Platter pot
+            <select
+              className="text-input"
+              value={cs.platterPotMultiplier}
+              onChange={(e) => setBoard(setPlatterPotMultiplier(board, Number(e.target.value)))}
+            >
+              {[...new Set([...PLATTER_POT_CHOICES, cs.platterPotMultiplier])]
+                .sort((a, b) => a - b)
+                .map((m) => (
+                  <option key={m} value={m}>
+                    ×{m} the tile value
+                  </option>
+                ))}
+            </select>
+          </label>
           <span className="hint">
             Random cheeses land on different tiles each game. To always hide a cheese on a particular clue, pick it in that clue's
-            cheese menu below.
+            cheese menu below. Aged Parmesan is only placed that way, and players can see it.
           </span>
         </section>
       )}
 
-      <div className="editor-scroll">
-        <div className="editor-grid" style={{ gridTemplateColumns: `repeat(${board.categories.length}, minmax(11em, 1fr))` }}>
-          {board.categories.map((cat, ci) => (
-            <div key={ci} className="editor-column">
-              <div className="editor-category">
-                <input
-                  className={`text-input${isEmpty(cat.name) ? ' input-empty' : ''}`}
-                  value={cat.name}
-                  maxLength={80}
-                  placeholder={`Category ${ci + 1}`}
-                  aria-label={`Category ${ci + 1} name`}
-                  onChange={(e) => setBoard(setCategoryName(board, ci, e.target.value))}
-                />
-                <div className="editor-category-actions">
-                  <button className="btn btn-small btn-ghost" disabled={ci === 0} onClick={() => setBoard(moveCategory(board, ci, -1))} aria-label={`Move category ${ci + 1} left`}>
-                    ◀
-                  </button>
-                  <button
-                    className="btn btn-small btn-ghost"
-                    disabled={ci === board.categories.length - 1}
-                    onClick={() => setBoard(moveCategory(board, ci, 1))}
-                    aria-label={`Move category ${ci + 1} right`}
-                  >
-                    ▶
-                  </button>
-                  <button
-                    className="btn btn-small btn-ghost"
-                    disabled={board.categories.length <= MIN_CATEGORIES}
-                    onClick={() => removeColumn(ci)}
-                    aria-label={`Remove category ${ci + 1}`}
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-
-              {cat.clues.map((clue, ri) => {
-                const label = `${cat.name.trim() || `Category ${ci + 1}`}, row ${ri + 1}`;
-                return (
-                  <div key={ri} className="editor-cell">
-                    <label className="editor-value">
-                      <span className="sr-only">{label} value</span>
-                      <input
-                        className={`text-input${!(clue.value > 0) ? ' input-empty' : ''}`}
-                        type="number"
-                        min={1}
-                        step={100}
-                        value={clue.value > 0 ? clue.value : ''}
-                        onChange={(e) => setBoard(updateClue(board, ci, ri, { value: Math.max(0, Math.round(Number(e.target.value) || 0)) }))}
-                      />
-                    </label>
-                    <textarea
-                      className={`text-input editor-clue${isEmpty(clue.clue) ? ' input-empty' : ''}`}
-                      value={clue.clue}
-                      rows={3}
-                      maxLength={1000}
-                      placeholder="Clue"
-                      aria-label={`${label} clue`}
-                      onChange={(e) => setBoard(updateClue(board, ci, ri, { clue: e.target.value }))}
-                    />
-                    <input
-                      className={`text-input editor-answer${isEmpty(clue.answer) ? ' input-empty' : ''}`}
-                      value={clue.answer}
-                      maxLength={1000}
-                      placeholder="Answer"
-                      aria-label={`${label} answer`}
-                      onChange={(e) => setBoard(updateClue(board, ci, ri, { answer: e.target.value }))}
-                    />
-                    <FixedCheese
-                      cheese={fixedCheeseAt(board, ci, ri)}
-                      editing={showCheeses}
-                      label={label}
-                      onChange={(cheese) => setBoard(setFixedCheese(board, ci, ri, cheese))}
-                    />
+      {view === 'platter' ? (
+        <PlatterEditor board={board} setBoard={setBoard} />
+      ) : (
+        <div className="editor-scroll">
+          <div className="editor-grid" style={{ gridTemplateColumns: `repeat(${board.categories.length}, minmax(11em, 1fr))` }}>
+            {board.categories.map((cat, ci) => (
+              <div key={ci} className="editor-column">
+                <div className="editor-category">
+                  <input
+                    className={`text-input${isEmpty(cat.name) ? ' input-empty' : ''}`}
+                    value={cat.name}
+                    maxLength={80}
+                    placeholder={`Category ${ci + 1}`}
+                    aria-label={`Category ${ci + 1} name`}
+                    onChange={(e) => setBoard(setCategoryName(board, ci, e.target.value))}
+                  />
+                  <div className="editor-category-actions">
+                    <button className="btn btn-small btn-ghost" disabled={ci === 0} onClick={() => setBoard(moveCategory(board, ci, -1))} aria-label={`Move category ${ci + 1} left`}>
+                      ◀
+                    </button>
+                    <button
+                      className="btn btn-small btn-ghost"
+                      disabled={ci === board.categories.length - 1}
+                      onClick={() => setBoard(moveCategory(board, ci, 1))}
+                      aria-label={`Move category ${ci + 1} right`}
+                    >
+                      ▶
+                    </button>
+                    <button
+                      className="btn btn-small btn-ghost"
+                      disabled={board.categories.length <= MIN_CATEGORIES}
+                      onClick={() => removeColumn(ci)}
+                      aria-label={`Remove category ${ci + 1}`}
+                    >
+                      ✕
+                    </button>
                   </div>
-                );
-              })}
-            </div>
-          ))}
+                </div>
+  
+                {cat.clues.map((clue, ri) => {
+                  const label = `${cat.name.trim() || `Category ${ci + 1}`}, row ${ri + 1}`;
+                  return (
+                    <div key={ri} className="editor-cell">
+                      <label className="editor-value">
+                        <span className="sr-only">{label} value</span>
+                        <input
+                          className={`text-input${!(clue.value > 0) ? ' input-empty' : ''}`}
+                          type="number"
+                          min={1}
+                          step={100}
+                          value={clue.value > 0 ? clue.value : ''}
+                          onChange={(e) => setBoard(updateClue(board, ci, ri, { value: Math.max(0, Math.round(Number(e.target.value) || 0)) }))}
+                        />
+                      </label>
+                      <textarea
+                        className={`text-input editor-clue${isEmpty(clue.clue) ? ' input-empty' : ''}`}
+                        value={clue.clue}
+                        rows={3}
+                        maxLength={1000}
+                        placeholder="Clue"
+                        aria-label={`${label} clue`}
+                        onChange={(e) => setBoard(updateClue(board, ci, ri, { clue: e.target.value }))}
+                      />
+                      <input
+                        className={`text-input editor-answer${isEmpty(clue.answer) ? ' input-empty' : ''}`}
+                        value={clue.answer}
+                        maxLength={1000}
+                        placeholder="Answer"
+                        aria-label={`${label} answer`}
+                        onChange={(e) => setBoard(updateClue(board, ci, ri, { answer: e.target.value }))}
+                      />
+                      <FixedCheese
+                        cheese={fixedCheeseAt(board, ci, ri)}
+                        editing={showCheeses}
+                        label={label}
+                        onChange={(cheese) => setBoard(setFixedCheese(board, ci, ri, cheese))}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -284,8 +322,6 @@ function FixedCheese(props: { cheese: CheeseId | null; editing: boolean; label: 
       </span>
     ) : null;
   }
-  // Keep a non-playable cheese (from an imported file) selectable so it isn't silently dropped.
-  const options = cheese && !PLAYABLE_CHEESES.includes(cheese) ? [...PLAYABLE_CHEESES, cheese] : PLAYABLE_CHEESES;
   return (
     <select
       className="text-input fixed-cheese-select"
@@ -294,7 +330,7 @@ function FixedCheese(props: { cheese: CheeseId | null; editing: boolean; label: 
       onChange={(e) => props.onChange((e.target.value || null) as CheeseId | null)}
     >
       <option value="">No fixed cheese</option>
-      {options.map((id) => (
+      {CHEESE_ORDER.map((id) => (
         <option key={id} value={id}>
           {CHEESES[id].emoji} {CHEESES[id].name}
         </option>

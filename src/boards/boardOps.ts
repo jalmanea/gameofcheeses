@@ -1,6 +1,7 @@
 // Pure helpers for creating, resizing and checking boards. No React, no storage.
-import { isPlayable } from '../game/cheeses';
-import type { Board, Category, CheeseId, CheeseSettings, Clue } from '../game/types';
+import { canBeRandom } from '../game/cheeses';
+import { isUsablePrompt, MAX_PLATTER_ANSWERS, MIN_PLATTER_ANSWERS } from '../game/platter';
+import type { Board, Category, CheeseId, CheeseSettings, Clue, PlatterPrompt } from '../game/types';
 
 export const MIN_CATEGORIES = 3;
 export const MAX_CATEGORIES = 8;
@@ -116,6 +117,76 @@ export function toggleCheeseInPool(board: Board, cheese: CheeseId, on: boolean):
   return { ...board, cheeseSettings: { ...board.cheeseSettings, pool: on ? [...pool, cheese] : pool } };
 }
 
+export const PLATTER_POT_CHOICES = [1, 1.5, 2, 2.5, 3, 4, 5] as const;
+
+export function setPlatterPotMultiplier(board: Board, multiplier: number): Board {
+  if (!Number.isFinite(multiplier) || multiplier <= 0) return board;
+  return { ...board, cheeseSettings: { ...board.cheeseSettings, platterPotMultiplier: multiplier } };
+}
+
+function withPrompts(board: Board, platterPrompts: PlatterPrompt[]): Board {
+  return { ...board, platterPrompts };
+}
+
+/** A new Platter prompt with the minimum number of empty answers. */
+export function addPlatterPrompt(board: Board): Board {
+  const answers = Array.from({ length: MIN_PLATTER_ANSWERS }, () => ({ text: '', points: 0 }));
+  return withPrompts(board, [...board.platterPrompts, { prompt: '', answers }]);
+}
+
+export function removePlatterPrompt(board: Board, index: number): Board {
+  return withPrompts(board, board.platterPrompts.filter((_, i) => i !== index));
+}
+
+export function setPlatterQuestion(board: Board, index: number, prompt: string): Board {
+  return withPrompts(board, board.platterPrompts.map((p, i) => (i === index ? { ...p, prompt } : p)));
+}
+
+export function updatePlatterAnswer(
+  board: Board,
+  index: number,
+  answerIndex: number,
+  patch: Partial<PlatterPrompt['answers'][number]>,
+): Board {
+  return withPrompts(
+    board,
+    board.platterPrompts.map((p, i) =>
+      i === index ? { ...p, answers: p.answers.map((a, j) => (j === answerIndex ? { ...a, ...patch } : a)) } : p,
+    ),
+  );
+}
+
+export function addPlatterAnswer(board: Board, index: number): Board {
+  const prompt = board.platterPrompts[index];
+  if (!prompt || prompt.answers.length >= MAX_PLATTER_ANSWERS) return board;
+  return withPrompts(
+    board,
+    board.platterPrompts.map((p, i) => (i === index ? { ...p, answers: [...p.answers, { text: '', points: 0 }] } : p)),
+  );
+}
+
+export function removePlatterAnswer(board: Board, index: number, answerIndex: number): Board {
+  const prompt = board.platterPrompts[index];
+  if (!prompt || prompt.answers.length <= MIN_PLATTER_ANSWERS) return board;
+  return withPrompts(
+    board,
+    board.platterPrompts.map((p, i) => (i === index ? { ...p, answers: p.answers.filter((_, j) => j !== answerIndex) } : p)),
+  );
+}
+
+/** Problems with one Platter prompt, as short phrases (empty if it's fine). */
+export function platterPromptProblems(p: PlatterPrompt): string[] {
+  const problems: string[] = [];
+  if (!p.prompt.trim()) problems.push('no question');
+  const n = p.answers.length;
+  if (n < MIN_PLATTER_ANSWERS || n > MAX_PLATTER_ANSWERS) {
+    problems.push(`needs ${MIN_PLATTER_ANSWERS}–${MAX_PLATTER_ANSWERS} answers`);
+  }
+  if (p.answers.some((a) => !a.text.trim())) problems.push('an answer is empty');
+  if (p.answers.some((a) => !(a.points > 0))) problems.push('an answer has no points');
+  return problems;
+}
+
 export function setCategoryName(board: Board, index: number, name: string): Board {
   return {
     ...board,
@@ -157,7 +228,8 @@ export type BoardWarning =
   | { kind: 'emptyAnswer'; categoryIndex: number; clueIndex: number }
   | { kind: 'badValue'; categoryIndex: number; clueIndex: number }
   | { kind: 'emptyCheesePool' }
-  | { kind: 'unplayableCheese'; cheese: CheeseId };
+  | { kind: 'badPlatterPrompt'; promptIndex: number }
+  | { kind: 'tooFewPlatterPrompts' };
 
 /** Problems worth flagging before play. A board with warnings can still be played. */
 export function validateBoard(board: Board): BoardWarning[] {
@@ -174,10 +246,18 @@ export function validateBoard(board: Board): BoardWarning[] {
     });
   });
   const cs = board.cheeseSettings;
-  if (cs.randomCount > 0 && !cs.pool.some(isPlayable)) warnings.push({ kind: 'emptyCheesePool' });
-  // Cheeses from a newer board file that this version can't play yet are skipped in games.
-  const unplayable = new Set([...(cs.randomCount > 0 ? cs.pool : []), ...cs.fixed.map((f) => f.cheese)].filter((c) => !isPlayable(c)));
-  unplayable.forEach((cheese) => warnings.push({ kind: 'unplayableCheese', cheese }));
+  if (cs.randomCount > 0 && !cs.pool.some(canBeRandom)) warnings.push({ kind: 'emptyCheesePool' });
+
+  board.platterPrompts.forEach((p, i) => {
+    if (platterPromptProblems(p).length) warnings.push({ kind: 'badPlatterPrompt', promptIndex: i });
+  });
+  // Each Platter needs its own prompt; Platters beyond the prompts are left off the board.
+  const prompts = board.platterPrompts.filter(isUsablePrompt).length;
+  const fixedPlatters = cs.fixed.filter((f) => f.cheese === 'platter').length;
+  const randomPlatters = cs.randomCount > 0 && cs.pool.includes('platter');
+  if (fixedPlatters > prompts || (randomPlatters && prompts <= fixedPlatters)) {
+    warnings.push({ kind: 'tooFewPlatterPrompts' });
+  }
   return warnings;
 }
 
@@ -196,7 +276,8 @@ export function summarizeWarnings(warnings: BoardWarning[]): string[] {
   const values = count('badValue');
   if (values) lines.push(`${plural(values, 'value is', 'values are')} not a positive number`);
   if (count('emptyCheesePool')) lines.push('Random cheeses are on, but no cheeses are picked for the pool');
-  const unplayable = count('unplayableCheese');
-  if (unplayable) lines.push(`${plural(unplayable, 'cheese', 'cheeses')} can't be played yet and will be skipped`);
+  const prompts = count('badPlatterPrompt');
+  if (prompts) lines.push(`${plural(prompts, 'Platter prompt needs', 'Platter prompts need')} fixing`);
+  if (count('tooFewPlatterPrompts')) lines.push('Not enough Platter prompts for the Cheese Platters');
   return lines;
 }

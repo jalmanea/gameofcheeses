@@ -1,5 +1,20 @@
-import { highestClueValue, placeCheeses } from './cheeses';
-import { pauseTimer, resumeTimer, startTimer, type ClueTimer } from './timer';
+import {
+  BLUE_DECAY_MS,
+  blueValue,
+  highestClueValue,
+  parmesanValue,
+  placeCheeses,
+  WHEEL_SEGMENTS,
+} from './cheeses';
+import {
+  hasPlatterStarted,
+  platterPayout,
+  platterSlots,
+  revealPlatterAnswer,
+  startPlatter,
+  strikePlatter,
+} from './platter';
+import { pauseTimer, resumeTimer, startTimer, timeLeft } from './timer';
 import type { ActiveTile, Board, GameAction, GameSettings, GameState, Player, PlayerInput } from './types';
 
 export const MIN_PLAYERS = 2;
@@ -60,18 +75,37 @@ function someoneCanAnswer(active: ActiveTile, players: Player[]): boolean {
 
 /** Backing out to the board is only allowed before the answer is shown or anyone has answered. */
 export function canCancel(active: ActiveTile): boolean {
+  if (active.platter && hasPlatterStarted(active.platter)) return false;
   return !active.answerRevealed && active.wrongPlayerIds.length === 0 && active.correctPlayerIds.length === 0;
 }
 
-/** Closing the tile without (more) scoring: after the reveal, or once Brie has a correct answer. */
+/**
+ * Closing the tile without (more) scoring: after the reveal, once Brie has a correct
+ * answer, or once a Platter round is over.
+ */
 export function canFinish(active: ActiveTile): boolean {
+  if (active.stage === 'platter') return !!active.platter?.finished;
   return active.stage === 'clue' && (active.answerRevealed || active.correctPlayerIds.length > 0);
+}
+
+/**
+ * The points at stake at time `now`. Usually just `active.value`, but Blue cheese
+ * decays while its clock runs (scoring happens while it's paused, so it's stable then).
+ */
+export function stakeValue(active: ActiveTile, now: number): number {
+  if (!active.decay) return active.value;
+  return blueValue(active.value, BLUE_DECAY_MS - timeLeft(active.decay, now));
 }
 
 /** What Esc does right now, shared by the keyboard handler and the on-screen hints. */
 export function escapeAction(active: ActiveTile, at: number): { label: string; action: GameAction } | null {
   const finish = { label: active.correctPlayerIds.length > 0 ? 'done' : 'no one', action: { type: 'noOne' } as const };
   const cancel = { label: 'back to board', action: { type: 'cancelTile' } as const };
+  if (active.stage === 'platter' && active.platter) {
+    if (active.platter.finished) return { label: 'done', action: { type: 'noOne' } };
+    if (hasPlatterStarted(active.platter)) return { label: 'end round', action: { type: 'platterEnd' } };
+    return cancel;
+  }
   if (active.stage !== 'clue') return canCancel(active) ? cancel : null;
   const unselect = { type: 'selectPlayer', playerId: null, at } as const;
   if (active.answerRevealed) {
@@ -81,6 +115,11 @@ export function escapeAction(active: ActiveTile, at: number): { label: string; a
   if ((active.selectedPlayerId || active.buzzed) && !active.soloPlayerId) return { label: 'cancel buzz', action: unselect };
   if (active.correctPlayerIds.length > 0) return finish;
   return canCancel(active) ? cancel : null;
+}
+
+/** The tile's printed value (before any cheese changes it). */
+function clueValue(state: GameState, active: ActiveTile): number {
+  return state.board.categories[active.categoryIndex].clues[active.clueIndex].value;
 }
 
 function addScore(players: Player[], playerId: string, delta: number): Player[] {
@@ -104,23 +143,48 @@ export function fetaSteal(players: Player[], answererId: string): Player[] {
   return result;
 }
 
-/** Closes the active tile and moves to Results if it was the last one. */
+/**
+ * Closes the active tile and moves to Results if it was the last one. Every Aged
+ * Parmesan still on the board gets a turn older.
+ */
 function closeActiveTile(state: GameState): GameState {
   const active = state.active;
   if (!active) return state;
   const tiles = state.tiles.map((col, ci) =>
-    ci === active.categoryIndex
-      ? col.map((t, ri) => (ri === active.clueIndex ? { ...t, played: true } : t))
-      : col,
+    col.map((t, ri) => {
+      if (ci === active.categoryIndex && ri === active.clueIndex) return { ...t, played: true };
+      if (t.cheese === 'parmesan' && !t.played) return { ...t, agedTurns: (t.agedTurns ?? 0) + 1 };
+      return t;
+    }),
   );
   const next: GameState = { ...state, tiles, active: null, phase: 'board' };
   return allTilesPlayed(next) ? { ...next, phase: 'results' } : next;
 }
 
-/** Puts the clue into play and starts its timer. */
+/** Puts the clue into play and starts its timer (and Blue cheese's decay). */
 function startClue(state: GameState, active: ActiveTile, at: number, patch: Partial<ActiveTile> = {}): GameState {
   const secs = state.settings.timerSeconds;
-  return { ...state, active: { ...active, ...patch, stage: 'clue', timer: secs ? startTimer(secs, at) : null } };
+  return {
+    ...state,
+    active: {
+      ...active,
+      ...patch,
+      stage: 'clue',
+      timer: secs ? startTimer(secs, at) : null,
+      decay: active.cheese === 'blue' ? startTimer(BLUE_DECAY_MS / 1000, at) : null,
+    },
+  };
+}
+
+/** Stops the clue's clocks: the timer and Blue cheese's decay. */
+function pauseClocks(active: ActiveTile, at: number): Pick<ActiveTile, 'timer' | 'decay'> {
+  return { timer: active.timer && pauseTimer(active.timer, at), decay: active.decay && pauseTimer(active.decay, at) };
+}
+
+/** Restarts the clocks, unless the answer is already showing. */
+function resumeClocks(active: ActiveTile, at: number): Pick<ActiveTile, 'timer' | 'decay'> {
+  if (active.answerRevealed) return { timer: active.timer, decay: active.decay };
+  return { timer: active.timer && resumeTimer(active.timer, at), decay: active.decay && resumeTimer(active.decay, at) };
 }
 
 /**
@@ -137,10 +201,14 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (!tile || tile.played) return state;
       const clue = state.board.categories[action.categoryIndex].clues[action.clueIndex];
       const cheese = tile.cheese ?? null;
+      let value = clue.value;
+      if (cheese === 'mozzarella') value = clue.value * 2;
+      if (cheese === 'parmesan') value = parmesanValue(clue.value, tile.agedTurns ?? 0);
+      if (cheese === 'platter') value = Math.round(clue.value * state.board.cheeseSettings.platterPotMultiplier);
       const opened: ActiveTile = {
         categoryIndex: action.categoryIndex,
         clueIndex: action.clueIndex,
-        value: cheese === 'mozzarella' ? clue.value * 2 : clue.value,
+        value,
         cheese,
         stage: 'cheese',
         pickerId: state.controlPlayerId,
@@ -151,6 +219,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         wrongPlayerIds: [],
         correctPlayerIds: [],
         timer: null,
+        decay: null,
+        wheelSegment: null,
+        platter: null,
       };
       const next: GameState = { ...state, phase: 'clue', active: opened };
       // A cheese tile shows its Cheese Reveal splash first.
@@ -161,7 +232,58 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (!active || active.stage !== 'cheese') return state;
       if (active.cheese === 'gouda') return { ...state, active: { ...active, stage: 'wager' } };
       if (active.cheese === 'limburger') return { ...state, active: { ...active, stage: 'handoff' } };
+      if (active.cheese === 'wheel') return { ...state, active: { ...active, stage: 'spin' } };
+      if (active.cheese === 'platter') {
+        const promptIndex = state.tiles[active.categoryIndex][active.clueIndex].platterPrompt;
+        const prompt = promptIndex === undefined ? undefined : state.board.platterPrompts[promptIndex];
+        // Placement always gives a Platter a prompt; without one, play it as a normal clue.
+        if (promptIndex === undefined || !prompt || platterSlots(prompt).length === 0) {
+          return startClue(state, active, action.at, { value: clueValue(state, active) });
+        }
+        return { ...state, active: { ...active, stage: 'platter', platter: startPlatter(promptIndex, active.pickerId) } };
+      }
       return startClue(state, active, action.at);
+    }
+
+    case 'spinWheel': {
+      if (!active || active.stage !== 'spin' || active.wheelSegment !== null) return state;
+      const multiplier = WHEEL_SEGMENTS[action.segment];
+      if (multiplier === undefined) return state;
+      return {
+        ...state,
+        active: { ...active, wheelSegment: action.segment, value: Math.round(clueValue(state, active) * multiplier) },
+      };
+    }
+
+    case 'beginClue': {
+      if (!active || active.stage !== 'spin' || active.wheelSegment === null) return state;
+      return startClue(state, active, action.at);
+    }
+
+    case 'platterReveal': {
+      const round = active?.platter;
+      if (!active || active.stage !== 'platter' || !round || round.finished || !round.turnPlayerId) return state;
+      const prompt = state.board.platterPrompts[round.promptIndex];
+      if (!platterSlots(prompt).includes(action.answerIndex)) return state;
+      if (round.found.some((f) => f.answerIndex === action.answerIndex)) return state;
+      const payout = platterPayout(prompt.answers[action.answerIndex].points, active.value);
+      return {
+        ...state,
+        players: addScore(state.players, round.turnPlayerId, payout),
+        active: { ...active, platter: revealPlatterAnswer(round, prompt, state.players, action.answerIndex) },
+      };
+    }
+
+    case 'platterStrike': {
+      const round = active?.platter;
+      if (!active || active.stage !== 'platter' || !round || round.finished || !round.turnPlayerId) return state;
+      return { ...state, active: { ...active, platter: strikePlatter(round, state.players) } };
+    }
+
+    case 'platterEnd': {
+      const round = active?.platter;
+      if (!active || active.stage !== 'platter' || !round || round.finished) return state;
+      return { ...state, active: { ...active, platter: { ...round, turnPlayerId: null, finished: true } } };
     }
 
     case 'setWager': {
@@ -187,30 +309,24 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'revealAnswer': {
       if (!active || active.stage !== 'clue' || active.answerRevealed) return state;
       // Showing the answer stops the clock.
-      const timer = active.timer && pauseTimer(active.timer, action.at);
-      return { ...state, active: { ...active, answerRevealed: true, timer } };
+      return { ...state, active: { ...active, answerRevealed: true, ...pauseClocks(active, action.at) } };
     }
 
     case 'buzz': {
       if (!active || active.stage !== 'clue' || active.answerRevealed || active.buzzed) return state;
       if (active.soloPlayerId || !someoneCanAnswer(active, state.players)) return state;
-      return {
-        ...state,
-        active: { ...active, buzzed: true, timer: active.timer && pauseTimer(active.timer, action.at) },
-      };
+      return { ...state, active: { ...active, buzzed: true, ...pauseClocks(active, action.at) } };
     }
 
     case 'selectPlayer': {
       if (!active || active.stage !== 'clue' || active.soloPlayerId) return state;
-      const pause = (t: ClueTimer | null) => (t && !active.answerRevealed ? pauseTimer(t, action.at) : t);
-      const resume = (t: ClueTimer | null) => (t && !active.answerRevealed ? resumeTimer(t, action.at) : t);
 
       if (action.playerId === null) {
         // Back to the open question: clears the selection and any buzz (e.g. a false alarm).
         if (!active.selectedPlayerId && !active.buzzed) return state;
         return {
           ...state,
-          active: { ...active, selectedPlayerId: null, buzzed: false, timer: resume(active.timer) },
+          active: { ...active, selectedPlayerId: null, buzzed: false, ...resumeClocks(active, action.at) },
         };
       }
       if (active.selectedPlayerId === action.playerId) return state;
@@ -219,7 +335,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       // Picking a player implies a buzz, so it also hides the question and pauses the clock.
       return {
         ...state,
-        active: { ...active, selectedPlayerId: action.playerId, buzzed: true, timer: pause(active.timer) },
+        active: { ...active, selectedPlayerId: action.playerId, buzzed: true, ...pauseClocks(active, action.at) },
       };
     }
 
@@ -227,7 +343,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const playerId = active?.selectedPlayerId;
       if (!active || active.stage !== 'clue' || !playerId) return state;
       const before = active.cheese === 'feta' ? fetaSteal(state.players, playerId) : state.players;
-      const players = addScore(before, playerId, active.value);
+      const players = addScore(before, playerId, stakeValue(active, action.at));
 
       if (active.cheese === 'brie') {
         // Brie: the tile stays open so more players can be marked correct.
@@ -238,15 +354,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           selectedPlayerId: null,
           buzzed: false,
         };
-        const timer =
-          active.timer && !active.answerRevealed && someoneCanAnswer(updated, state.players)
-            ? resumeTimer(active.timer, action.at)
-            : active.timer;
         return {
           ...state,
           players,
           controlPlayerId: active.correctPlayerIds.length === 0 ? playerId : state.controlPlayerId,
-          active: { ...updated, timer },
+          active: { ...updated, ...(someoneCanAnswer(updated, state.players) ? resumeClocks(active, action.at) : {}) },
         };
       }
       return closeActiveTile({ ...state, players, controlPlayerId: playerId });
@@ -255,7 +367,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'markWrong': {
       const playerId = active?.selectedPlayerId;
       if (!active || active.stage !== 'clue' || !playerId) return state;
-      const penalty = active.cheese === 'swiss' ? 0 : active.value; // Swiss: holes, no penalty
+      const penalty = active.cheese === 'swiss' ? 0 : stakeValue(active, action.at); // Swiss: holes, no penalty
       const updated: ActiveTile = {
         ...active,
         selectedPlayerId: null,
@@ -263,15 +375,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         // The question comes back for anyone else who can still answer.
         buzzed: false,
       };
-      // The others get whatever time was left; if nobody can answer, the clock stays stopped.
-      const timer =
-        active.timer && !active.answerRevealed && someoneCanAnswer(updated, state.players)
-          ? resumeTimer(active.timer, action.at)
-          : active.timer && pauseTimer(active.timer, action.at);
+      // The others get whatever time was left; if nobody can answer, the clocks stay stopped.
+      const clocks = someoneCanAnswer(updated, state.players) ? resumeClocks(active, action.at) : pauseClocks(active, action.at);
       return {
         ...state,
         players: penalty ? addScore(state.players, playerId, -penalty) : state.players,
-        active: { ...updated, timer },
+        active: { ...updated, ...clocks },
       };
     }
 

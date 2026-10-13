@@ -12,6 +12,14 @@ import {
   setCategoryName,
   setFixedCheese,
   fixedCheeseAt,
+  addPlatterAnswer,
+  addPlatterPrompt,
+  platterPromptProblems,
+  removePlatterAnswer,
+  removePlatterPrompt,
+  setPlatterPotMultiplier,
+  setPlatterQuestion,
+  updatePlatterAnswer,
   setRandomCheeseCount,
   toggleCheeseInPool,
   setRowCount,
@@ -150,11 +158,58 @@ describe('cheese settings in the editor', () => {
     expect(b.cheeseSettings.pool).toEqual(['swiss']);
   });
 
-  it('warns about an empty pool and cheeses that cannot be played yet', () => {
+  it('warns about an empty pool (Aged Parmesan alone does not count, since it is never random)', () => {
     const b = { ...SAMPLE_BOARD, cheeseSettings: { ...SAMPLE_BOARD.cheeseSettings, randomCount: 2, pool: [] } };
     expect(summarizeWarnings(validateBoard(b))).toEqual(['Random cheeses are on, but no cheeses are picked for the pool']);
-    const later = setFixedCheese(SAMPLE_BOARD, 0, 0, 'platter');
-    expect(summarizeWarnings(validateBoard(later))).toEqual(["1 cheese can't be played yet and will be skipped"]);
+    const parmesanOnly = { ...b, cheeseSettings: { ...b.cheeseSettings, pool: ['parmesan' as const] } };
+    expect(summarizeWarnings(validateBoard(parmesanOnly))).toEqual(['Random cheeses are on, but no cheeses are picked for the pool']);
+  });
+
+  it('sets the Platter pot multiplier', () => {
+    expect(setPlatterPotMultiplier(SAMPLE_BOARD, 3).cheeseSettings.platterPotMultiplier).toBe(3);
+    expect(setPlatterPotMultiplier(SAMPLE_BOARD, 0)).toBe(SAMPLE_BOARD);
+  });
+});
+
+describe('Platter prompts in the editor', () => {
+  const blank = () => createBlankBoard('x');
+
+  it('adds, edits and removes prompts and answers (4–8 answers)', () => {
+    let b = addPlatterPrompt(blank());
+    expect(b.platterPrompts).toEqual([{ prompt: '', answers: Array(4).fill({ text: '', points: 0 }) }]);
+    b = setPlatterQuestion(b, 0, 'Name a cheese');
+    b = updatePlatterAnswer(b, 0, 1, { text: 'Brie', points: 30 });
+    expect(b.platterPrompts[0].prompt).toBe('Name a cheese');
+    expect(b.platterPrompts[0].answers[1]).toEqual({ text: 'Brie', points: 30 });
+    expect(removePlatterAnswer(b, 0, 0)).toBe(b); // already at the minimum
+    for (let i = 0; i < 6; i++) b = addPlatterAnswer(b, 0);
+    expect(b.platterPrompts[0].answers).toHaveLength(8);
+    b = removePlatterAnswer(b, 0, 1);
+    expect(b.platterPrompts[0].answers).toHaveLength(7);
+    expect(b.platterPrompts[0].answers.some((a) => a.text === 'Brie')).toBe(false);
+    expect(removePlatterPrompt(b, 0).platterPrompts).toEqual([]);
+  });
+
+  it('describes what is wrong with a prompt', () => {
+    expect(platterPromptProblems({ prompt: '', answers: [{ text: 'A', points: 0 }] })).toEqual([
+      'no question',
+      'needs 4–8 answers',
+      'an answer has no points',
+    ]);
+    expect(SAMPLE_BOARD.platterPrompts.flatMap(platterPromptProblems)).toEqual([]);
+  });
+
+  it('warns about bad prompts and too few prompts for the Platters', () => {
+    let b = setFixedCheese(blank(), 0, 0, 'platter');
+    expect(summarizeWarnings(validateBoard(b))).toContain('Not enough Platter prompts for the Cheese Platters');
+    b = addPlatterPrompt(b);
+    expect(summarizeWarnings(validateBoard(b))).toContain('1 Platter prompt needs fixing');
+    // An unusable prompt doesn't count towards the Platters.
+    expect(summarizeWarnings(validateBoard(b))).toContain('Not enough Platter prompts for the Cheese Platters');
+    const sampleWithPlatters = { ...SAMPLE_BOARD, cheeseSettings: { ...SAMPLE_BOARD.cheeseSettings, randomCount: 3, pool: ['platter' as const] } };
+    expect(summarizeWarnings(validateBoard(sampleWithPlatters))).toEqual([]);
+    const noPrompts = { ...sampleWithPlatters, platterPrompts: [] };
+    expect(summarizeWarnings(validateBoard(noPrompts))).toEqual(['Not enough Platter prompts for the Cheese Platters']);
   });
 });
 

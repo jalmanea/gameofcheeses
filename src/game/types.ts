@@ -59,7 +59,10 @@ export interface TileState {
   played: boolean;
   /** Hidden cheese on this tile, placed when the game starts. */
   cheese?: CheeseId;
+  /** Aged Parmesan: how many turns it has gone unpicked. */
   agedTurns?: number;
+  /** Cheese Platter: which of the board's Platter prompts this tile uses. */
+  platterPrompt?: number;
 }
 
 /**
@@ -67,15 +70,34 @@ export interface TileState {
  * - cheese: the Cheese Reveal splash is showing
  * - wager: Gouda, waiting for the picker's wager
  * - handoff: Limburger, waiting for the picker to choose who answers
+ * - spin: Cheese Wheel, spinning for a multiplier
  * - clue: the clue is in play
+ * - platter: Cheese Platter, the survey round replaces the clue
  */
-export type ClueStage = 'cheese' | 'wager' | 'handoff' | 'clue';
+export type ClueStage = 'cheese' | 'wager' | 'handoff' | 'spin' | 'clue' | 'platter';
+
+/** A Cheese Platter survey round in progress. */
+export interface PlatterRound {
+  promptIndex: number;
+  /** Answers flipped so far, in order, with the player who found each. */
+  found: { answerIndex: number; playerId: string }[];
+  /** Strikes per player id; two strikes and a player is out of this round. */
+  strikes: Record<string, number>;
+  /** Whose turn it is to answer, or null once the round is over. */
+  turnPlayerId: string | null;
+  /** Over: every answer found, every player out, or ended by the host. All answers are shown. */
+  finished: boolean;
+}
 
 /** The clue currently on screen. */
 export interface ActiveTile {
   categoryIndex: number;
   clueIndex: number;
-  /** Points at stake: the clue value, doubled by Mozzarella, or the Gouda wager. */
+  /**
+   * Points at stake: the clue value, doubled by Mozzarella, aged by Parmesan, multiplied
+   * by the Wheel, or the Gouda wager. For Blue cheese it's the value before decay, and
+   * for the Platter it's the pot.
+   */
   value: number;
   cheese: CheeseId | null;
   stage: ClueStage;
@@ -97,6 +119,14 @@ export interface ActiveTile {
   correctPlayerIds: string[];
   /** Countdown for this clue (starts once the clue is in play), or null when off. */
   timer: ClueTimer | null;
+  /**
+   * Blue cheese: a countdown to the value's floor. It runs and pauses along with the
+   * clue timer; the value at stake is worked out from the time it has run.
+   */
+  decay: ClueTimer | null;
+  /** Cheese Wheel: the segment it landed on, once spun. */
+  wheelSegment: number | null;
+  platter: PlatterRound | null;
 }
 
 export type Phase = 'board' | 'clue' | 'results';
@@ -129,11 +159,17 @@ export type GameAction =
   | { type: 'dismissCheese'; at: number }
   | { type: 'setWager'; amount: number; at: number }
   | { type: 'handOff'; playerId: string; at: number }
+  /** The segment is picked at random by the caller, so the reducer stays pure. */
+  | { type: 'spinWheel'; segment: number }
+  | { type: 'beginClue'; at: number }
   | { type: 'revealAnswer'; at: number }
   | { type: 'buzz'; at: number }
   | { type: 'selectPlayer'; playerId: string | null; at: number }
   | { type: 'markCorrect'; at: number }
   | { type: 'markWrong'; at: number }
+  | { type: 'platterReveal'; answerIndex: number }
+  | { type: 'platterStrike' }
+  | { type: 'platterEnd' }
   | { type: 'noOne' }
   | { type: 'cancelTile' }
   | { type: 'adjustScore'; playerId: string; delta: number }
