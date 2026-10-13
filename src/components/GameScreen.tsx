@@ -65,6 +65,16 @@ export function GameScreen({ state, canUndo, dispatch, onExit, onRematch }: Prop
             <kbd>1</kbd>–<kbd>{state.players.length}</kbd> who gets the clue ·{' '}
           </>
         )}
+        {state.active?.stage === 'spin' && (
+          <>
+            <kbd>Space</kbd> {state.active.wheelSegment === null ? 'spin' : 'show the clue'} ·{' '}
+          </>
+        )}
+        {state.active?.stage === 'platter' && !state.active.platter?.finished && (
+          <>
+            <kbd>1</kbd>–<kbd>8</kbd> flip that answer · <kbd>X</kbd> strike · <kbd>Enter</kbd> end round ·{' '}
+          </>
+        )}
         {state.active?.stage === 'wager' && (
           <>
             type the wager, <kbd>Enter</kbd> to lock it in ·{' '}

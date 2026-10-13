@@ -1,9 +1,10 @@
 # Game of Cheeses
 
 A cheese-themed, Jeopardy-style quiz game for one screen, run by a host. See [SPEC.md](SPEC.md)
-for the full design. Done so far: **milestone 1** (playable core: players, scoring, undo, auto-save, results) and
-**milestone 2** (board library, editor, JSON import/export) and **milestone 3** (cheeses: reveal
-splash, Cheese Guide, and Gouda, Swiss, Limburger, Brie, Mozzarella, Feta).
+for the full design. Done so far: **milestone 1** (playable core: players, scoring, undo, auto-save, results),
+**milestone 2** (board library, editor, JSON import/export), **milestone 3** (cheeses: reveal
+splash, Cheese Guide, and Gouda, Swiss, Limburger, Brie, Mozzarella, Feta) and **milestone 4**
+(Aged Parmesan, Blue cheese, Cheese Wheel and the Cheese Platter survey round).
 
 ## Run
 
@@ -40,12 +41,25 @@ first (`Space` to continue), then the rule applies:
 | Brie | Several players can be marked correct and all score; close with `Esc` (Done). The first correct player takes control |
 | Mozzarella | Double value; the answer has two parts |
 | Feta | A correct answer also takes 10% of the leader's score (each tied leader; nothing if you lead) |
+| Aged Parmesan | Never hidden: the author puts it on a clue and it shows on the board. It gains 10% of its value each turn nobody picks it (a turn = another tile closing), up to ×3 |
+| Blue cheese | The value drops 5% of the printed value per second, down to 20%. It pauses with the timer (on a buzz) and carries on after a wrong answer |
+| Cheese Wheel | `Space` spins for ×0.5, ×1, ×1.5, ×2 or ×3, then `Space` shows the clue |
+| Cheese Platter | A survey round instead of the clue (below) |
+
+**Cheese Platter.** Each board has a pool of Platter prompts (edit them with **🍽️ Platter
+prompts** in the editor): a question and 4–8 answers with popularity points, usually adding up to
+about 100. Each Platter tile gets its own prompt when the game starts, so a board never has more
+Platters than prompts. Starting with the picker, players answer in turn: press the slot's number
+(`1`–`8`, most popular first) or click it to flip it, which pays that player
+`points ÷ 100 × pot` (pot = 2 × tile value by default, set under **🧀 Cheeses**), or `X` for a
+strike. Two strikes and a player is out. The round ends when every answer is found, everyone is
+out, or the host presses `Enter`; the rest of the answers are then shown and `Esc` closes the
+tile. Board control stays with the picker.
 
 In the editor, **🧀 Cheeses** sets how many random cheeses to hide, which cheeses they're picked
 from, and lets you fix a cheese on a specific clue. At game setup the host can switch off any of
 the board's cheeses for that game. Played tiles show the cheese they hid. The **Cheese Guide**
-(from the library) lists every cheese; Aged Parmesan, Blue cheese, Cheese Wheel and Cheese
-Platter are marked "coming soon".
+(from the library) lists every cheese.
 
 ## Host keyboard controls
 
@@ -70,7 +84,8 @@ adjustment and board-control override.
 
 ## Code layout
 
-- `src/game/reducer.ts` holds all game rules as one pure, JSON-only reducer
+- `src/game/reducer.ts` holds all game rules as one pure, JSON-only reducer; `cheeses.ts` and
+  `platter.ts` hold the cheese catalogue, placement and the Platter round helpers
 - `src/game/history.ts` holds the undo stack (previous states) wrapped around the reducer
 - `src/game/persistence.ts` handles the versioned localStorage save
 - `src/boards/` holds pure board editing/validation (`boardOps.ts`), the board file format

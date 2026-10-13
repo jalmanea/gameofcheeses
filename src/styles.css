@@ -800,9 +800,6 @@ button.score-card:hover:not(:disabled) {
   background: var(--rind);
   color: var(--cream);
 }
-.cheese-card-soon {
-  opacity: 0.6;
-}
 .cheese-art {
   display: flex;
   flex: none;
@@ -967,7 +964,7 @@ button.score-card:hover:not(:disabled) {
   background: var(--rind);
   cursor: pointer;
 }
-.pool-chip-soon {
+.pool-chip-off {
   opacity: 0.5;
   cursor: default;
 }
@@ -997,4 +994,206 @@ button.score-card:hover:not(:disabled) {
 }
 .clue .btn-ghost {
   color: var(--rind);
+}
+
+/* ---------- Milestone 4 cheeses ---------- */
+
+/* Aged Parmesan: visible on the board, deepening in colour as it ripens. */
+.tile-parmesan {
+  position: relative;
+  background: color-mix(in srgb, #b8690c calc(var(--ripeness, 0) * 100%), #fde7a2);
+  box-shadow: inset 0 0 0 5px var(--rind);
+}
+.tile-parmesan:hover:not(:disabled) {
+  background: var(--cheese-light);
+}
+.tile-badge {
+  position: absolute;
+  top: 0.2em;
+  left: 0.3em;
+  font-size: 0.6em;
+}
+
+/* Blue cheese: the value ticks down. */
+.clue-value-decaying {
+  color: #2f4f7a;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Cheese Wheel */
+.wheel-stage {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 1em 2.5em;
+}
+.wheel-wrap {
+  position: relative;
+  width: min(48vh, 38vw);
+  aspect-ratio: 1;
+}
+.wheel-pointer {
+  position: absolute;
+  top: -0.4em;
+  left: 50%;
+  z-index: 1;
+  border-top: 1.4em solid var(--rind);
+  border-right: 0.8em solid transparent;
+  border-left: 0.8em solid transparent;
+  transform: translateX(-50%);
+}
+.wheel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border: 6px solid var(--rind);
+  border-radius: 50%;
+}
+.wheel-spinning {
+  transition: transform 4s cubic-bezier(0.12, 0.8, 0.2, 1);
+}
+.wheel-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  padding-top: 9%;
+  pointer-events: none;
+}
+.wheel-label span {
+  color: var(--rind);
+  font-size: clamp(18px, 2.4vw, 48px);
+  font-weight: 900;
+  text-shadow: 0 0 4px var(--cream);
+}
+.wheel-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3em;
+}
+
+/* Cheese Platter */
+.platter {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.platter-prompt {
+  margin: 0.4em 0;
+  font-size: clamp(24px, 3vw, 60px);
+  font-weight: 800;
+  text-align: center;
+}
+.platter-board {
+  display: grid;
+  flex: 1;
+  grid-auto-flow: column;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4em 0.8em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.platter-board li {
+  display: flex;
+}
+.platter-slot {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6em;
+  min-height: 2em;
+  padding: 0.2em 0.6em;
+  border: 4px solid transparent;
+  border-radius: var(--radius);
+  background: var(--rind);
+  color: var(--cheese);
+  font: inherit;
+  font-size: clamp(18px, 2vw, 40px);
+  font-weight: 800;
+}
+button.platter-slot {
+  cursor: pointer;
+}
+button.platter-slot:hover:not(:disabled) {
+  background: var(--rind-light);
+}
+.platter-slot-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6em;
+  height: 1.6em;
+  border-radius: 50%;
+  background: var(--cheese);
+  color: var(--rind);
+}
+.platter-slot-open {
+  justify-content: space-between;
+  background: var(--cream);
+  color: var(--rind);
+}
+.platter-slot-missed {
+  opacity: 0.6;
+  font-style: italic;
+}
+.platter-slot-text {
+  flex: 1;
+  text-align: left;
+}
+.platter-slot-points {
+  padding: 0 0.4em;
+  border-radius: 6px;
+  background: var(--rind);
+  color: var(--cheese);
+  font-variant-numeric: tabular-nums;
+}
+.platter-slot-finder {
+  font-size: 0.6em;
+  font-weight: 700;
+}
+.platter-note {
+  font-size: 0.85em;
+}
+
+/* Editor: Platter prompts */
+.platter-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8em;
+  max-width: 48em;
+  margin: 0 auto;
+}
+.platter-prompt-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+  padding: 0.6em;
+  border-radius: var(--radius);
+  background: var(--rind-mid);
+}
+.platter-prompt-head,
+.platter-answer-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+}
+.platter-prompt-head .text-input {
+  flex: 1;
+  font-weight: 700;
+}
+.platter-answers {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+  margin: 0;
+  padding-left: 2.2em;
+}
+.platter-answer-row .text-input:first-child {
+  flex: 1;
+}
+.platter-points {
+  width: 5em;
 }

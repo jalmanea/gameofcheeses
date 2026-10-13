@@ -1,19 +1,7 @@
-import { useEffect, useState } from 'react';
 import { timeLeft, type ClueTimer } from '../game/timer';
+import { useNow } from '../useNow';
 
 const WARN_MS = 5000;
-
-/** Re-renders a few times a second while the timer is running. */
-function useNow(running: boolean): number {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    setNow(Date.now());
-    if (!running) return;
-    const id = window.setInterval(() => setNow(Date.now()), 100);
-    return () => window.clearInterval(id);
-  }, [running]);
-  return now;
-}
 
 export function ClueTimerView({ timer, totalSeconds }: { timer: ClueTimer; totalSeconds: number }) {
   const running = timer.runningSince !== null;

@@ -1,10 +1,13 @@
 import { useState, type FormEvent } from 'react';
 import { CHEESES } from '../game/cheeses';
 import type { SessionAction } from '../game/history';
-import { escapeAction, hasAnswered, maxWager } from '../game/reducer';
+import { escapeAction, hasAnswered, maxWager, stakeValue } from '../game/reducer';
 import type { ActiveTile, GameState, Player } from '../game/types';
+import { useNow } from '../useNow';
 import { ClueTimerView } from './ClueTimerView';
 import { CheeseCard } from './CheeseCard';
+import { CheeseWheel } from './CheeseWheel';
+import { PlatterRoundView } from './PlatterRoundView';
 
 interface Props {
   state: GameState;
@@ -32,7 +35,7 @@ export function ClueView({ state, active, dispatch }: Props) {
             <span aria-hidden>{cheese.emoji}</span> {cheese.name}
           </span>
         )}
-        <span className="clue-value">{active.stage === 'wager' ? 'Wager' : active.value}</span>
+        <StakeLabel active={active} printedValue={category.clues[active.clueIndex].value} />
       </div>
 
       {active.stage === 'cheese' && cheese && (
@@ -75,8 +78,32 @@ export function ClueView({ state, active, dispatch }: Props) {
         </div>
       )}
 
+      {active.stage === 'spin' && (
+        <CheeseWheel active={active} baseValue={category.clues[active.clueIndex].value} dispatch={dispatch} escButton={escButton} />
+      )}
+
+      {active.stage === 'platter' && active.platter && (
+        <PlatterRoundView state={state} active={active} round={active.platter} dispatch={dispatch} escButton={escButton} />
+      )}
+
       {active.stage === 'clue' && <CluePlay state={state} active={active} dispatch={dispatch} escButton={escButton} />}
     </div>
+  );
+}
+
+/** The points at stake, in the header. Blue cheese's value ticks down while its clock runs. */
+function StakeLabel({ active, printedValue }: { active: ActiveTile; printedValue: number }) {
+  const decaying = !!active.decay && active.decay.runningSince !== null;
+  const now = useNow(decaying);
+  let label: string | number = stakeValue(active, now);
+  if (active.stage === 'wager') label = 'Wager';
+  // The wheel shows its own result once it stops; the header mustn't give it away mid-spin.
+  if (active.stage === 'spin') label = printedValue;
+  if (active.stage === 'platter') label = `Pot ${active.value}`;
+  return (
+    <span className={`clue-value${decaying ? ' clue-value-decaying' : ''}`} aria-live="off">
+      {label}
+    </span>
   );
 }
 
@@ -136,6 +163,8 @@ function CluePlay({ state, active, dispatch, escButton }: Props & { escButton: R
   // Hidden from the players while someone answers, so buzzing early buys no reading time.
   const questionHidden = active.buzzed && !active.answerRevealed;
   const correctNames = state.players.filter((p) => active.correctPlayerIds.includes(p.id)).map((p) => p.name);
+  // Clocks are paused while a player is selected, so this is the value they're playing for.
+  const stake = stakeValue(active, Date.now());
 
   return (
     <>
@@ -177,11 +206,11 @@ function CluePlay({ state, active, dispatch, escButton }: Props & { escButton: R
               {selected.name} {solo ? 'answers alone' : 'answers'}:
             </span>
             <button className="btn btn-correct" onClick={() => dispatch({ type: 'markCorrect', at: Date.now() })}>
-              ✓ Correct +{active.value}
+              ✓ Correct +{stake}
               {active.cheese === 'feta' ? ' + steal' : ''} <kbd>C</kbd>
             </button>
             <button className="btn btn-wrong" onClick={() => dispatch({ type: 'markWrong', at: Date.now() })}>
-              ✗ Wrong {active.cheese === 'swiss' ? '(no penalty)' : `−${active.value}`} <kbd>W</kbd>
+              ✗ Wrong {active.cheese === 'swiss' ? '(no penalty)' : `−${stake}`} <kbd>W</kbd>
             </button>
             {escButton}
           </>

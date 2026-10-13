@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import type { GameSession, SessionAction } from './game/history';
 import { toggleFullscreen } from './fullscreen';
+import { randomWheelSegment } from './game/cheeses';
+import { platterSlots } from './game/platter';
 import { escapeAction } from './game/reducer';
 
 function isTyping(target: EventTarget | null): boolean {
@@ -20,6 +22,8 @@ function isTyping(target: EventTarget | null): boolean {
  *   1–6        select the player who buzzed (Limburger: who gets the clue)
  *   C / W      mark the selected player correct / wrong
  *   Enter      reveal the answer (also continues past a Cheese Reveal)
+ *   Space      Cheese Wheel: spin, then show the clue
+ *   1–8 / X    Cheese Platter: flip that answer slot / strike; Enter ends the round, then closes it
  *   Esc        whatever escapeAction() says: cancel a buzz, back to the board, no one / done
  *   Ctrl+Z     undo
  *   F          fullscreen
@@ -50,7 +54,7 @@ export function useHostKeys(session: GameSession | null, dispatch: (a: SessionAc
         return handled();
       }
 
-      const { phase, active, players } = s.present;
+      const { phase, active, players, board } = s.present;
       if (phase !== 'clue' || !active) return;
       const at = Date.now();
 
@@ -58,8 +62,9 @@ export function useHostKeys(session: GameSession | null, dispatch: (a: SessionAc
         const esc = escapeAction(active, at);
         return handled(esc?.action);
       }
-      const digit = /^(?:Digit|Numpad)([1-6])$/.exec(e.code);
-      const player = digit && !e.shiftKey ? players[Number(digit[1]) - 1] : undefined;
+      const digit = /^(?:Digit|Numpad)([1-9])$/.exec(e.code);
+      const number = digit && !e.shiftKey ? Number(digit[1]) : null;
+      const player = number ? players[number - 1] : undefined;
 
       switch (active.stage) {
         case 'cheese':
@@ -70,6 +75,22 @@ export function useHostKeys(session: GameSession | null, dispatch: (a: SessionAc
           return;
         case 'wager':
           return; // typed into the wager box
+        case 'spin':
+          if (key === ' ' || key === 'enter') {
+            return handled(
+              active.wheelSegment === null ? { type: 'spinWheel', segment: randomWheelSegment() } : { type: 'beginClue', at },
+            );
+          }
+          return;
+        case 'platter': {
+          const round = active.platter;
+          if (!round) return;
+          if (key === 'enter') return handled(round.finished ? { type: 'noOne' } : { type: 'platterEnd' });
+          if (key === 'x') return handled({ type: 'platterStrike' });
+          const answerIndex = number ? platterSlots(board.platterPrompts[round.promptIndex])[number - 1] : undefined;
+          if (answerIndex !== undefined) return handled({ type: 'platterReveal', answerIndex });
+          return;
+        }
         case 'clue':
           if (key === ' ') return handled({ type: 'buzz', at });
           if (key === 'enter') return handled({ type: 'revealAnswer', at });
