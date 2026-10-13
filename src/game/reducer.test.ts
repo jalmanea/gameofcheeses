@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createGame, gameReducer, getStandings, getWinners } from './reducer';
 import { canUndo, createSession, HISTORY_LIMIT, sessionReducer, type SessionAction } from './history';
 import { parseSave, SAVE_VERSION, serializeSession } from './persistence';
+import { timeLeft } from './timer';
 import { SAMPLE_BOARD } from './sampleBoard';
 import type { Board, GameAction, GameState } from './types';
 
@@ -55,14 +56,14 @@ describe('createGame', () => {
   });
 
   it('produces JSON-serializable state', () => {
-    const s = run(newGame(), { type: 'selectTile', categoryIndex: 0, clueIndex: 0 });
+    const s = run(newGame(), { type: 'selectTile', categoryIndex: 0, clueIndex: 0, at: 0 });
     expect(JSON.parse(JSON.stringify(s))).toEqual(s);
   });
 });
 
 describe('selecting a tile', () => {
   it('opens the clue with its value', () => {
-    const s = run(newGame(), { type: 'selectTile', categoryIndex: 2, clueIndex: 3 });
+    const s = run(newGame(), { type: 'selectTile', categoryIndex: 2, clueIndex: 3, at: 0 });
     expect(s.phase).toBe('clue');
     expect(s.active).toMatchObject({ categoryIndex: 2, clueIndex: 3, value: 800, answerRevealed: false });
   });
@@ -70,25 +71,25 @@ describe('selecting a tile', () => {
   it('ignores played tiles and out-of-range tiles', () => {
     const played = run(
       newGame(),
-      { type: 'selectTile', categoryIndex: 0, clueIndex: 0 },
-      { type: 'revealAnswer' },
+      { type: 'selectTile', categoryIndex: 0, clueIndex: 0, at: 0 },
+      { type: 'revealAnswer', at: 0 },
       { type: 'noOne' },
     );
-    expect(gameReducer(played, { type: 'selectTile', categoryIndex: 0, clueIndex: 0 })).toBe(played);
-    expect(gameReducer(played, { type: 'selectTile', categoryIndex: 9, clueIndex: 0 })).toBe(played);
+    expect(gameReducer(played, { type: 'selectTile', categoryIndex: 0, clueIndex: 0, at: 0 })).toBe(played);
+    expect(gameReducer(played, { type: 'selectTile', categoryIndex: 9, clueIndex: 0, at: 0 })).toBe(played);
   });
 
   it('reveals the answer', () => {
-    const s = run(newGame(), { type: 'selectTile', categoryIndex: 0, clueIndex: 0 }, { type: 'revealAnswer' });
+    const s = run(newGame(), { type: 'selectTile', categoryIndex: 0, clueIndex: 0, at: 0 }, { type: 'revealAnswer', at: 0 });
     expect(s.active?.answerRevealed).toBe(true);
   });
 });
 
 describe('judging', () => {
-  const open = (s: GameState) => run(s, { type: 'selectTile', categoryIndex: 1, clueIndex: 1 }); // 400
+  const open = (s: GameState) => run(s, { type: 'selectTile', categoryIndex: 1, clueIndex: 1, at: 0 }); // 400
 
   it('correct adds the value, gives board control and closes the tile', () => {
-    const s = run(open(newGame()), { type: 'selectPlayer', playerId: 'p2' }, { type: 'markCorrect' });
+    const s = run(open(newGame()), { type: 'selectPlayer', playerId: 'p2', at: 0 }, { type: 'markCorrect' });
     expect(score(s, 'p2')).toBe(400);
     expect(s.controlPlayerId).toBe('p2');
     expect(s.tiles[1][1].played).toBe(true);
@@ -97,7 +98,7 @@ describe('judging', () => {
   });
 
   it('wrong subtracts the value and keeps the tile open without changing control', () => {
-    const s = run(open(newGame()), { type: 'selectPlayer', playerId: 'p2' }, { type: 'markWrong' });
+    const s = run(open(newGame()), { type: 'selectPlayer', playerId: 'p2', at: 0 }, { type: 'markWrong', at: 0 });
     expect(score(s, 'p2')).toBe(-400);
     expect(s.controlPlayerId).toBe('p1');
     expect(s.phase).toBe('clue');
@@ -107,36 +108,36 @@ describe('judging', () => {
   });
 
   it('locks out a player who answered wrong for the rest of that clue', () => {
-    const s = run(open(newGame()), { type: 'selectPlayer', playerId: 'p2' }, { type: 'markWrong' });
-    expect(gameReducer(s, { type: 'selectPlayer', playerId: 'p2' })).toBe(s);
-    const after = run(s, { type: 'selectPlayer', playerId: 'p3' }, { type: 'markCorrect' });
+    const s = run(open(newGame()), { type: 'selectPlayer', playerId: 'p2', at: 0 }, { type: 'markWrong', at: 0 });
+    expect(gameReducer(s, { type: 'selectPlayer', playerId: 'p2', at: 0 })).toBe(s);
+    const after = run(s, { type: 'selectPlayer', playerId: 'p3', at: 0 }, { type: 'markCorrect' });
     expect(score(after, 'p2')).toBe(-400);
     expect(score(after, 'p3')).toBe(400);
     // The lockout doesn't carry over to the next clue.
-    const next = run(after, { type: 'selectTile', categoryIndex: 0, clueIndex: 0 });
-    expect(gameReducer(next, { type: 'selectPlayer', playerId: 'p2' }).active?.selectedPlayerId).toBe('p2');
+    const next = run(after, { type: 'selectTile', categoryIndex: 0, clueIndex: 0, at: 0 });
+    expect(gameReducer(next, { type: 'selectPlayer', playerId: 'p2', at: 0 }).active?.selectedPlayerId).toBe('p2');
   });
 
   it('ignores correct/wrong when no player is selected', () => {
     const s = open(newGame());
     expect(gameReducer(s, { type: 'markCorrect' })).toBe(s);
-    expect(gameReducer(s, { type: 'markWrong' })).toBe(s);
+    expect(gameReducer(s, { type: 'markWrong', at: 0 })).toBe(s);
   });
 
   it('ignores selecting an unknown player', () => {
     const s = open(newGame());
-    expect(gameReducer(s, { type: 'selectPlayer', playerId: 'nobody' })).toBe(s);
+    expect(gameReducer(s, { type: 'selectPlayer', playerId: 'nobody', at: 0 })).toBe(s);
   });
 
   it('lets the host change or clear the selection before judging', () => {
-    const s = run(open(newGame()), { type: 'selectPlayer', playerId: 'p2' }, { type: 'selectPlayer', playerId: 'p3' });
+    const s = run(open(newGame()), { type: 'selectPlayer', playerId: 'p2', at: 0 }, { type: 'selectPlayer', playerId: 'p3', at: 0 });
     expect(s.active?.selectedPlayerId).toBe('p3');
-    expect(gameReducer(s, { type: 'selectPlayer', playerId: null }).active?.selectedPlayerId).toBeNull();
+    expect(gameReducer(s, { type: 'selectPlayer', playerId: null, at: 0 }).active?.selectedPlayerId).toBeNull();
   });
 
   it('"no one" closes the tile with no score or control change', () => {
     const before = open(newGame());
-    const s = run(before, { type: 'revealAnswer' }, { type: 'noOne' });
+    const s = run(before, { type: 'revealAnswer', at: 0 }, { type: 'noOne' });
     expect(s.players).toEqual(before.players);
     expect(s.controlPlayerId).toBe('p1');
     expect(s.tiles[1][1].played).toBe(true);
@@ -159,16 +160,73 @@ describe('judging', () => {
   });
 
   it('cancelling is not allowed after the reveal or after a wrong answer', () => {
-    const revealed = run(open(newGame()), { type: 'revealAnswer' });
+    const revealed = run(open(newGame()), { type: 'revealAnswer', at: 0 });
     expect(gameReducer(revealed, { type: 'cancelTile' })).toBe(revealed);
-    const wrong = run(open(newGame()), { type: 'selectPlayer', playerId: 'p1' }, { type: 'markWrong' });
+    const wrong = run(open(newGame()), { type: 'selectPlayer', playerId: 'p1', at: 0 }, { type: 'markWrong', at: 0 });
     expect(gameReducer(wrong, { type: 'cancelTile' })).toBe(wrong);
   });
 
   it('"no one" after wrong answers keeps the penalties', () => {
-    const s = run(open(newGame()), { type: 'selectPlayer', playerId: 'p1' }, { type: 'markWrong' }, { type: 'revealAnswer' }, { type: 'noOne' });
+    const s = run(open(newGame()), { type: 'selectPlayer', playerId: 'p1', at: 0 }, { type: 'markWrong', at: 0 }, { type: 'revealAnswer', at: 0 }, { type: 'noOne' });
     expect(score(s, 'p1')).toBe(-400);
     expect(s.tiles[1][1].played).toBe(true);
+  });
+});
+
+describe('clue timer', () => {
+  const timed = () => createGame(SAMPLE_BOARD, PLAYERS, { timerSeconds: 10 });
+  const open = (s: GameState, at = 1000) => run(s, { type: 'selectTile', categoryIndex: 0, clueIndex: 0, at });
+  const left = (s: GameState, now: number) => timeLeft(s.active!.timer!, now);
+
+  it('has no timer when the setting is off', () => {
+    expect(open(newGame()).active?.timer).toBeNull();
+  });
+
+  it('starts counting down when the clue opens', () => {
+    const s = open(timed());
+    expect(left(s, 1000)).toBe(10_000);
+    expect(left(s, 4000)).toBe(7_000);
+    expect(left(s, 99_000)).toBe(0);
+  });
+
+  it('pauses while a selected player answers and resumes after a wrong answer', () => {
+    let s = run(open(timed()), { type: 'selectPlayer', playerId: 'p1', at: 4000 }); // 7s left
+    expect(left(s, 60_000)).toBe(7_000);
+    s = run(s, { type: 'markWrong', at: 20_000 });
+    expect(left(s, 22_000)).toBe(5_000);
+  });
+
+  it('resumes when the selection is cleared', () => {
+    const s = run(
+      open(timed()),
+      { type: 'selectPlayer', playerId: 'p1', at: 3000 },
+      { type: 'selectPlayer', playerId: null, at: 50_000 },
+    );
+    expect(left(s, 51_000)).toBe(7_000);
+  });
+
+  it('stops when the answer is shown', () => {
+    const s = run(open(timed()), { type: 'revealAnswer', at: 6000 });
+    expect(left(s, 60_000)).toBe(5_000);
+    // Selecting or judging after the reveal doesn't restart it.
+    const after = run(s, { type: 'selectPlayer', playerId: 'p1', at: 7000 }, { type: 'markWrong', at: 8000 });
+    expect(left(after, 60_000)).toBe(5_000);
+  });
+
+  it('does not resume once time has run out', () => {
+    const s = run(
+      open(timed()),
+      { type: 'selectPlayer', playerId: 'p1', at: 30_000 },
+      { type: 'markWrong', at: 31_000 },
+    );
+    expect(left(s, 40_000)).toBe(0);
+    expect(s.active?.timer?.runningSince).toBeNull();
+  });
+
+  it('starts fresh on each clue', () => {
+    let s = run(open(timed()), { type: 'revealAnswer', at: 5000 }, { type: 'noOne' });
+    s = run(s, { type: 'selectTile', categoryIndex: 1, clueIndex: 0, at: 100_000 });
+    expect(left(s, 100_000)).toBe(10_000);
   });
 });
 
@@ -176,7 +234,7 @@ describe('manual adjustment and control', () => {
   it('adjusts a score up or down, on the board or during a clue', () => {
     let s = run(newGame(), { type: 'adjustScore', playerId: 'p3', delta: 500 });
     expect(score(s, 'p3')).toBe(500);
-    s = run(s, { type: 'selectTile', categoryIndex: 0, clueIndex: 0 }, { type: 'adjustScore', playerId: 'p3', delta: -700 });
+    s = run(s, { type: 'selectTile', categoryIndex: 0, clueIndex: 0, at: 0 }, { type: 'adjustScore', playerId: 'p3', delta: -700 });
     expect(score(s, 'p3')).toBe(-200);
     expect(s.phase).toBe('clue');
   });
@@ -197,17 +255,17 @@ describe('manual adjustment and control', () => {
 describe('game end', () => {
   it('goes to results after the last tile closes', () => {
     let s = createGame(TINY_BOARD, PLAYERS);
-    s = run(s, { type: 'selectTile', categoryIndex: 0, clueIndex: 0 }, { type: 'revealAnswer' }, { type: 'noOne' });
+    s = run(s, { type: 'selectTile', categoryIndex: 0, clueIndex: 0, at: 0 }, { type: 'revealAnswer', at: 0 }, { type: 'noOne' });
     expect(s.phase).toBe('board');
-    s = run(s, { type: 'selectTile', categoryIndex: 0, clueIndex: 1 }, { type: 'selectPlayer', playerId: 'p2' }, { type: 'markCorrect' });
+    s = run(s, { type: 'selectTile', categoryIndex: 0, clueIndex: 1, at: 0 }, { type: 'selectPlayer', playerId: 'p2', at: 0 }, { type: 'markCorrect' });
     expect(s.phase).toBe('results');
     expect(score(s, 'p2')).toBe(200);
   });
 
   it('does not end the game after a wrong answer on the last tile', () => {
     let s = createGame(TINY_BOARD, PLAYERS);
-    s = run(s, { type: 'selectTile', categoryIndex: 0, clueIndex: 0 }, { type: 'revealAnswer' }, { type: 'noOne' });
-    s = run(s, { type: 'selectTile', categoryIndex: 0, clueIndex: 1 }, { type: 'selectPlayer', playerId: 'p1' }, { type: 'markWrong' });
+    s = run(s, { type: 'selectTile', categoryIndex: 0, clueIndex: 0, at: 0 }, { type: 'revealAnswer', at: 0 }, { type: 'noOne' });
+    s = run(s, { type: 'selectTile', categoryIndex: 0, clueIndex: 1, at: 0 }, { type: 'selectPlayer', playerId: 'p1', at: 0 }, { type: 'markWrong', at: 0 });
     expect(s.phase).toBe('clue');
   });
 
@@ -215,7 +273,7 @@ describe('game end', () => {
     let s = newGame();
     SAMPLE_BOARD.categories.forEach((cat, ci) =>
       cat.clues.forEach((_, ri) => {
-        s = run(s, { type: 'selectTile', categoryIndex: ci, clueIndex: ri }, { type: 'revealAnswer' }, { type: 'noOne' });
+        s = run(s, { type: 'selectTile', categoryIndex: ci, clueIndex: ri, at: 0 }, { type: 'revealAnswer', at: 0 }, { type: 'noOne' });
       }),
     );
     expect(s.phase).toBe('results');
@@ -255,10 +313,10 @@ describe('undo history', () => {
   it('undoes judging step by step back to the start', () => {
     const start = createSession(newGame());
     const s = apply(
-      { type: 'selectTile', categoryIndex: 0, clueIndex: 0 },
-      { type: 'selectPlayer', playerId: 'p1' },
-      { type: 'markWrong' },
-      { type: 'selectPlayer', playerId: 'p2' },
+      { type: 'selectTile', categoryIndex: 0, clueIndex: 0, at: 0 },
+      { type: 'selectPlayer', playerId: 'p1', at: 0 },
+      { type: 'markWrong', at: 0 },
+      { type: 'selectPlayer', playerId: 'p2', at: 0 },
       { type: 'markCorrect' },
     );
     expect(score(s.present, 'p2')).toBe(200);
@@ -287,11 +345,11 @@ describe('undo history', () => {
   it('undoes the move to results', () => {
     let s = createSession(createGame(TINY_BOARD, PLAYERS));
     for (const a of [
-      { type: 'selectTile', categoryIndex: 0, clueIndex: 0 },
-      { type: 'revealAnswer' },
+      { type: 'selectTile', categoryIndex: 0, clueIndex: 0, at: 0 },
+      { type: 'revealAnswer', at: 0 },
       { type: 'noOne' },
-      { type: 'selectTile', categoryIndex: 0, clueIndex: 1 },
-      { type: 'revealAnswer' },
+      { type: 'selectTile', categoryIndex: 0, clueIndex: 1, at: 0 },
+      { type: 'revealAnswer', at: 0 },
       { type: 'noOne' },
     ] as SessionAction[]) s = sessionReducer(s, a);
     expect(s.present.phase).toBe('results');
@@ -301,7 +359,7 @@ describe('undo history', () => {
   });
 
   it('does not record ignored actions', () => {
-    const s = apply({ type: 'markCorrect' }, { type: 'revealAnswer' });
+    const s = apply({ type: 'markCorrect' }, { type: 'revealAnswer', at: 0 });
     expect(s.past).toHaveLength(0);
   });
 
@@ -316,7 +374,7 @@ describe('undo history', () => {
 
 describe('save files', () => {
   it('round-trips a session', () => {
-    const s = createSession(run(newGame(), { type: 'selectTile', categoryIndex: 0, clueIndex: 0 }));
+    const s = createSession(run(newGame(), { type: 'selectTile', categoryIndex: 0, clueIndex: 0, at: 0 }));
     const parsed = parseSave(serializeSession(s));
     expect(parsed?.version).toBe(SAVE_VERSION);
     expect(parsed?.session).toEqual(s);

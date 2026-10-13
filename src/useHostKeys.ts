@@ -51,18 +51,18 @@ export function useHostKeys(session: GameSession | null, dispatch: (a: SessionAc
       const { phase, active, players } = s.present;
       if (phase !== 'clue' || !active) return;
 
-      if (key === ' ') return handled({ type: 'revealAnswer' });
+      if (key === ' ') return handled({ type: 'revealAnswer', at: Date.now() });
       if (key === 'escape') {
-        if (active.selectedPlayerId) return handled({ type: 'selectPlayer', playerId: null });
+        if (active.selectedPlayerId) return handled({ type: 'selectPlayer', playerId: null, at: Date.now() });
         return handled(active.answerRevealed ? { type: 'noOne' } : { type: 'cancelTile' });
       }
       if (key === 'c') return handled({ type: 'markCorrect' });
-      if (key === 'w') return handled({ type: 'markWrong' });
+      if (key === 'w') return handled({ type: 'markWrong', at: Date.now() });
 
       const digit = /^(?:Digit|Numpad)([1-6])$/.exec(e.code);
       if (digit && !e.shiftKey) {
         const player = players[Number(digit[1]) - 1];
-        if (player) return handled({ type: 'selectPlayer', playerId: player.id });
+        if (player) return handled({ type: 'selectPlayer', playerId: player.id, at: Date.now() });
       }
     };
     window.addEventListener('keydown', onKeyDown);

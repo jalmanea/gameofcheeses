@@ -2,7 +2,7 @@ import type { GameSession } from './history';
 
 export const SAVE_KEY = 'game-of-cheeses:game';
 /** Bump when the saved shape changes; older saves are then migrated or discarded. */
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 export interface SaveFile {
   version: number;

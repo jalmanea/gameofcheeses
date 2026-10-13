@@ -2,6 +2,8 @@
 // JSON-serializable data: states are saved to localStorage and will later be
 // broadcast to an audience window.
 
+import type { ClueTimer } from './timer';
+
 export type CheeseId =
   | 'gouda'
   | 'swiss'
@@ -70,13 +72,22 @@ export interface ActiveTile {
   selectedPlayerId: string | null;
   /** Players who already answered this clue wrong and are locked out. */
   wrongPlayerIds: string[];
+  /** Countdown for this clue, or null when the timer is off. */
+  timer: ClueTimer | null;
 }
 
 export type Phase = 'board' | 'clue' | 'results';
 
+/** Chosen by the host before the game starts. */
+export interface GameSettings {
+  /** Seconds on the clue timer, or null for no timer. */
+  timerSeconds: number | null;
+}
+
 export interface GameState {
   /** The board is embedded so a saved game is self-contained. */
   board: Board;
+  settings: GameSettings;
   players: Player[];
   controlPlayerId: string;
   tiles: TileState[][];
@@ -84,12 +95,16 @@ export interface GameState {
   phase: Phase;
 }
 
+/**
+ * Actions that affect the clue timer carry `at`, the time they happened (epoch ms),
+ * so the reducer never reads the clock itself.
+ */
 export type GameAction =
-  | { type: 'selectTile'; categoryIndex: number; clueIndex: number }
-  | { type: 'revealAnswer' }
-  | { type: 'selectPlayer'; playerId: string | null }
+  | { type: 'selectTile'; categoryIndex: number; clueIndex: number; at: number }
+  | { type: 'revealAnswer'; at: number }
+  | { type: 'selectPlayer'; playerId: string | null; at: number }
   | { type: 'markCorrect' }
-  | { type: 'markWrong' }
+  | { type: 'markWrong'; at: number }
   | { type: 'noOne' }
   | { type: 'cancelTile' }
   | { type: 'adjustScore'; playerId: string; delta: number }

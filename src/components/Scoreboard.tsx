@@ -39,7 +39,7 @@ export function Scoreboard({ state, dispatch }: Props) {
             style={{ borderColor: p.color }}
             disabled={lockedOut}
             aria-pressed={selected}
-            onClick={() => dispatch({ type: 'selectPlayer', playerId: selected ? null : p.id })}
+            onClick={() => dispatch({ type: 'selectPlayer', playerId: selected ? null : p.id, at: Date.now() })}
           >
             {content}
           </button>

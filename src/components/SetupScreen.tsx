@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { MAX_PLAYERS, MIN_PLAYERS } from '../game/reducer';
-import type { PlayerInput } from '../game/types';
+import { DEFAULT_TIMER_SECONDS, TIMER_CHOICES } from '../game/timer';
+import type { GameSettings, PlayerInput } from '../game/types';
 
 export const PLAYER_COLORS = [
   { name: 'Red', value: '#d62828' },
@@ -15,11 +16,12 @@ function nextFreeColor(players: PlayerInput[]): string {
   return (PLAYER_COLORS.find((c) => !players.some((p) => p.color === c.value)) ?? PLAYER_COLORS[0]).value;
 }
 
-export function SetupScreen({ onStart }: { onStart: (players: PlayerInput[]) => void }) {
+export function SetupScreen({ onStart }: { onStart: (players: PlayerInput[], settings: GameSettings) => void }) {
   const [players, setPlayers] = useState<PlayerInput[]>(() =>
     PLAYER_COLORS.slice(0, 3).map((c) => ({ name: '', color: c.value })),
   );
   const [error, setError] = useState<string | null>(null);
+  const [timerSeconds, setTimerSeconds] = useState<number | null>(DEFAULT_TIMER_SECONDS);
 
   const update = (i: number, patch: Partial<PlayerInput>) =>
     setPlayers((ps) => ps.map((p, j) => (j === i ? { ...p, ...patch } : p)));
@@ -33,7 +35,7 @@ export function SetupScreen({ onStart }: { onStart: (players: PlayerInput[]) => 
       setError('Each player needs a different name.');
       return;
     }
-    onStart(named);
+    onStart(named, { timerSeconds });
   };
 
   return (
@@ -86,6 +88,22 @@ export function SetupScreen({ onStart }: { onStart: (players: PlayerInput[]) => 
             </li>
           ))}
         </ol>
+        <h2>Clue timer</h2>
+        <p className="hint">Counts down while a clue is shown. It pauses while a player answers.</p>
+        <div className="timer-choices" role="radiogroup" aria-label="Clue timer">
+          {[null, ...TIMER_CHOICES].map((secs) => (
+            <button
+              key={secs ?? 'off'}
+              type="button"
+              role="radio"
+              aria-checked={timerSeconds === secs}
+              className={`btn btn-small${timerSeconds === secs ? ' btn-on' : ''}`}
+              onClick={() => setTimerSeconds(secs)}
+            >
+              {secs === null ? 'Off' : `${secs}s`}
+            </button>
+          ))}
+        </div>
         <div className="row">
           <button
             type="button"

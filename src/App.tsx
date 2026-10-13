@@ -3,7 +3,7 @@ import { createGame } from './game/reducer';
 import { canUndo, createSession, sessionReducer, type GameSession, type SessionAction } from './game/history';
 import { browserStore, clearSave, loadSave, writeSave, type SaveFile } from './game/persistence';
 import { SAMPLE_BOARD } from './game/sampleBoard';
-import type { PlayerInput } from './game/types';
+import type { GameSettings, PlayerInput } from './game/types';
 import { SetupScreen } from './components/SetupScreen';
 import { ResumePrompt } from './components/ResumePrompt';
 import { GameScreen } from './components/GameScreen';
@@ -38,8 +38,8 @@ export function App() {
 
   useHostKeys(screen.kind === 'game' ? session : null, dispatch);
 
-  const startGame = (players: PlayerInput[]) => {
-    dispatch({ type: 'load', session: createSession(createGame(SAMPLE_BOARD, players)) });
+  const startGame = (players: PlayerInput[], settings: GameSettings) => {
+    dispatch({ type: 'load', session: createSession(createGame(SAMPLE_BOARD, players, settings)) });
     setScreen({ kind: 'game' });
   };
 

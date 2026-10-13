@@ -1,5 +1,6 @@
 import type { SessionAction } from '../game/history';
 import type { ActiveTile, GameState } from '../game/types';
+import { ClueTimerView } from './ClueTimerView';
 
 interface Props {
   state: GameState;
@@ -21,13 +22,17 @@ export function ClueView({ state, active, dispatch }: Props) {
         <span className="clue-value">{active.value}</span>
       </div>
 
+      {active.timer && state.settings.timerSeconds && !active.answerRevealed && (
+        <ClueTimerView timer={active.timer} totalSeconds={state.settings.timerSeconds} />
+      )}
+
       <p className="clue-text">{clue.clue}</p>
 
       <div className="clue-answer">
         {active.answerRevealed ? (
           <p className="answer-text">{clue.answer}</p>
         ) : (
-          <button className="btn" onClick={() => dispatch({ type: 'revealAnswer' })}>
+          <button className="btn" onClick={() => dispatch({ type: 'revealAnswer', at: Date.now() })}>
             Reveal answer <kbd>Space</kbd>
           </button>
         )}
@@ -43,10 +48,10 @@ export function ClueView({ state, active, dispatch }: Props) {
             <button className="btn btn-correct" onClick={() => dispatch({ type: 'markCorrect' })}>
               ✓ Correct +{active.value} <kbd>C</kbd>
             </button>
-            <button className="btn btn-wrong" onClick={() => dispatch({ type: 'markWrong' })}>
+            <button className="btn btn-wrong" onClick={() => dispatch({ type: 'markWrong', at: Date.now() })}>
               ✗ Wrong −{active.value} <kbd>W</kbd>
             </button>
-            <button className="btn btn-ghost" onClick={() => dispatch({ type: 'selectPlayer', playerId: null })}>
+            <button className="btn btn-ghost" onClick={() => dispatch({ type: 'selectPlayer', playerId: null, at: Date.now() })}>
               Cancel <kbd>Esc</kbd>
             </button>
           </>

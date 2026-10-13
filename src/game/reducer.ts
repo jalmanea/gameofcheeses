@@ -1,10 +1,17 @@
-import type { Board, GameAction, GameState, Player, PlayerInput } from './types';
+import { pauseTimer, resumeTimer, startTimer } from './timer';
+import type { Board, GameAction, GameSettings, GameState, Player, PlayerInput } from './types';
 
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 6;
 
+export const DEFAULT_SETTINGS: GameSettings = { timerSeconds: null };
+
 /** Builds a fresh game. Player ids are deterministic (p1..p6) to keep this pure. */
-export function createGame(board: Board, inputs: PlayerInput[]): GameState {
+export function createGame(
+  board: Board,
+  inputs: PlayerInput[],
+  settings: GameSettings = DEFAULT_SETTINGS,
+): GameState {
   if (inputs.length < MIN_PLAYERS || inputs.length > MAX_PLAYERS) {
     throw new Error(`A game needs ${MIN_PLAYERS}–${MAX_PLAYERS} players`);
   }
@@ -16,6 +23,7 @@ export function createGame(board: Board, inputs: PlayerInput[]): GameState {
   }));
   return {
     board,
+    settings,
     players,
     controlPlayerId: players[0].id,
     tiles: board.categories.map((c) => c.clues.map(() => ({ played: false }))),
@@ -67,13 +75,17 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           answerRevealed: false,
           selectedPlayerId: null,
           wrongPlayerIds: [],
+          timer: state.settings.timerSeconds ? startTimer(state.settings.timerSeconds, action.at) : null,
         },
       };
     }
 
     case 'revealAnswer': {
-      if (!state.active || state.active.answerRevealed) return state;
-      return { ...state, active: { ...state.active, answerRevealed: true } };
+      const active = state.active;
+      if (!active || active.answerRevealed) return state;
+      // Showing the answer stops the clock.
+      const timer = active.timer && pauseTimer(active.timer, action.at);
+      return { ...state, active: { ...active, answerRevealed: true, timer } };
     }
 
     case 'selectPlayer': {
@@ -83,7 +95,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         if (!state.players.some((p) => p.id === action.playerId)) return state;
         if (active.wrongPlayerIds.includes(action.playerId)) return state;
       }
-      return { ...state, active: { ...active, selectedPlayerId: action.playerId } };
+      // The clock pauses while a selected player answers, and resumes if they're unselected.
+      let timer = active.timer;
+      if (timer && !active.answerRevealed) {
+        timer = action.playerId === null ? resumeTimer(timer, action.at) : pauseTimer(timer, action.at);
+      }
+      return { ...state, active: { ...active, selectedPlayerId: action.playerId, timer } };
     }
 
     case 'markCorrect': {
@@ -107,6 +124,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           ...active,
           selectedPlayerId: null,
           wrongPlayerIds: [...active.wrongPlayerIds, playerId],
+          // The others get whatever time was left.
+          timer: active.timer && !active.answerRevealed ? resumeTimer(active.timer, action.at) : active.timer,
         },
       };
     }

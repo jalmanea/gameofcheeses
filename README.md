@@ -24,6 +24,11 @@ npm run build   # type-check + production build
 | `Ctrl+Z` | Undo (any number of steps) |
 | `F` | Toggle fullscreen |
 
+**Clue timer:** chosen on the setup screen (Off or 5–60 s, default 15 s). It starts when a clue
+opens, pauses while a selected player answers, resumes with the time left after a wrong answer,
+and stops when the answer is shown. At zero it shows "Time's up!"; the host still decides what
+happens next.
+
 Shortcuts are ignored while typing in a text field. Everything is also clickable: during a clue
 the score cards are the "who buzzed" buttons, and **± Scores** in the toolbar opens manual score
 adjustment and board-control override.

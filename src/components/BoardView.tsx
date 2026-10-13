@@ -43,7 +43,7 @@ export function BoardView({ state, dispatch }: Props) {
                 style={{ gridColumn: ci + 1, gridRow: ri + 2 }}
                 disabled={played}
                 aria-label={`${cat.name} for ${clue.value}${played ? ' (played)' : ''}`}
-                onClick={() => dispatch({ type: 'selectTile', categoryIndex: ci, clueIndex: ri })}
+                onClick={() => dispatch({ type: 'selectTile', categoryIndex: ci, clueIndex: ri, at: Date.now() })}
               >
                 {played ? '' : clue.value}
               </button>

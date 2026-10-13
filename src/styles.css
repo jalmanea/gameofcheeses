@@ -417,6 +417,58 @@ kbd {
   font-weight: 700;
 }
 
+/* ---------- Clue timer ---------- */
+
+.timer {
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+  margin-top: 0.5em;
+}
+.timer-bar {
+  flex: 1;
+  height: 0.7em;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(42 26 13 / 0.2);
+}
+.timer-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--rind);
+  transition: width 0.1s linear;
+}
+.timer-text {
+  min-width: 2.5em;
+  font-size: 1.8em;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.timer-paused .timer-fill {
+  opacity: 0.45;
+}
+.timer-warn .timer-fill,
+.timer-warn .timer-text,
+.timer-up .timer-text {
+  color: var(--wax);
+  background-color: var(--wax);
+}
+.timer-warn .timer-text,
+.timer-up .timer-text {
+  background: none;
+}
+.timer-up .timer-text {
+  min-width: auto;
+  white-space: nowrap;
+}
+
+.timer-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4em;
+}
+
 /* ---------- Scoreboard ---------- */
 
 .scoreboard {
