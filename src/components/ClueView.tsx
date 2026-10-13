@@ -14,6 +14,9 @@ export function ClueView({ state, active, dispatch }: Props) {
   const selected = state.players.find((p) => p.id === active.selectedPlayerId);
   const everyoneWrong = active.wrongPlayerIds.length === state.players.length;
   const canCancel = !active.answerRevealed && active.wrongPlayerIds.length === 0;
+  // Hidden from the players while someone answers, so buzzing early buys no reading time.
+  const questionHidden = active.buzzed && !active.answerRevealed;
+  const unbuzz = () => dispatch({ type: 'selectPlayer', playerId: null, at: Date.now() });
 
   return (
     <div className="clue">
@@ -26,14 +29,26 @@ export function ClueView({ state, active, dispatch }: Props) {
         <ClueTimerView timer={active.timer} totalSeconds={state.settings.timerSeconds} />
       )}
 
-      <p className="clue-text">{clue.clue}</p>
+      {questionHidden ? (
+        <div className="clue-text clue-buzzed" aria-live="polite">
+          {selected ? (
+            <span>
+              <span className="control-dot" style={{ background: selected.color }} /> {selected.name}
+            </span>
+          ) : (
+            'Buzz!'
+          )}
+        </div>
+      ) : (
+        <p className="clue-text">{clue.clue}</p>
+      )}
 
       <div className="clue-answer">
         {active.answerRevealed ? (
           <p className="answer-text">{clue.answer}</p>
         ) : (
-          <button className="btn" onClick={() => dispatch({ type: 'revealAnswer', at: Date.now() })}>
-            Reveal answer <kbd>Space</kbd>
+          <button className="btn btn-ghost" onClick={() => dispatch({ type: 'revealAnswer', at: Date.now() })}>
+            Reveal answer <kbd>Enter</kbd>
           </button>
         )}
       </div>
@@ -51,15 +66,28 @@ export function ClueView({ state, active, dispatch }: Props) {
             <button className="btn btn-wrong" onClick={() => dispatch({ type: 'markWrong', at: Date.now() })}>
               ✗ Wrong −{active.value} <kbd>W</kbd>
             </button>
-            <button className="btn btn-ghost" onClick={() => dispatch({ type: 'selectPlayer', playerId: null, at: Date.now() })}>
+            <button className="btn btn-ghost" onClick={unbuzz}>
               Cancel <kbd>Esc</kbd>
+            </button>
+          </>
+        ) : questionHidden ? (
+          <>
+            <span className="judging-label">Who buzzed first? Click a player below or press their number.</span>
+            <button className="btn btn-ghost" onClick={unbuzz}>
+              False alarm <kbd>Esc</kbd>
             </button>
           </>
         ) : (
           <>
-            <span className="judging-label">
-              {everyoneWrong ? 'Everyone has answered.' : 'Who buzzed? Click a player below or press their number.'}
-            </span>
+            {active.answerRevealed || everyoneWrong ? (
+              <span className="judging-label">
+                {everyoneWrong ? 'Everyone has answered.' : 'Click a player or press their number to judge.'}
+              </span>
+            ) : (
+              <button className="btn btn-primary" onClick={() => dispatch({ type: 'buzz', at: Date.now() })}>
+                Buzz! <kbd>Space</kbd>
+              </button>
+            )}
             {active.answerRevealed ? (
               <button className="btn" onClick={() => dispatch({ type: 'noOne' })}>
                 No one <kbd>Esc</kbd>

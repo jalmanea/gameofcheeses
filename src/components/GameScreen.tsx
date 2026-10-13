@@ -1,12 +1,19 @@
 import { useState } from 'react';
 import type { SessionAction } from '../game/history';
-import type { GameState } from '../game/types';
+import type { ActiveTile, GameState } from '../game/types';
 import { toggleFullscreen } from '../fullscreen';
 import { BoardView } from './BoardView';
 import { ClueView } from './ClueView';
 import { Scoreboard } from './Scoreboard';
 import { ResultsView } from './ResultsView';
 import { AdjustPanel } from './AdjustPanel';
+
+/** What Esc does right now on the clue screen (mirrors useHostKeys), or null if nothing. */
+function escapeLabel(active: ActiveTile): string | null {
+  if (active.answerRevealed) return active.selectedPlayerId ? 'unselect' : 'no one';
+  if (active.selectedPlayerId || active.buzzed) return 'cancel buzz';
+  return active.wrongPlayerIds.length === 0 ? 'back to board' : null;
+}
 
 interface Props {
   state: GameState;
@@ -17,6 +24,7 @@ interface Props {
 
 export function GameScreen({ state, canUndo, dispatch, onNewGame }: Props) {
   const [adjusting, setAdjusting] = useState(false);
+  const escLabel = state.active ? escapeLabel(state.active) : null;
 
   return (
     <div className="game">
@@ -58,14 +66,13 @@ export function GameScreen({ state, canUndo, dispatch, onNewGame }: Props) {
       <footer className="shortcuts">
         {state.phase === 'clue' ? (
           <>
-            <kbd>Space</kbd> reveal answer · <kbd>1</kbd>–<kbd>{state.players.length}</kbd> who buzzed ·{' '}
-            <kbd>C</kbd> correct · <kbd>W</kbd> wrong · <kbd>Esc</kbd>{' '}
-            {state.active?.selectedPlayerId
-              ? 'unselect'
-              : state.active?.answerRevealed
-                ? 'no one'
-                : 'back to board'}{' '}
-            ·{' '}
+            <kbd>Space</kbd> buzz · <kbd>1</kbd>–<kbd>{state.players.length}</kbd> who buzzed ·{' '}
+            <kbd>C</kbd> correct · <kbd>W</kbd> wrong · <kbd>Enter</kbd> reveal answer ·{' '}
+            {escLabel && (
+              <>
+                <kbd>Esc</kbd> {escLabel} ·{' '}
+              </>
+            )}
           </>
         ) : null}
         <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo · <kbd>F</kbd> fullscreen

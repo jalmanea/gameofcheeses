@@ -388,6 +388,17 @@ kbd {
   line-height: 1.2;
   text-align: center;
 }
+.clue-buzzed {
+  color: var(--wax);
+  font-size: clamp(40px, 7vw, 140px);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.clue-buzzed .control-dot {
+  width: 0.6em;
+  height: 0.6em;
+  vertical-align: middle;
+}
 .clue-answer {
   display: flex;
   justify-content: center;

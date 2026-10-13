@@ -230,6 +230,63 @@ describe('clue timer', () => {
   });
 });
 
+describe('buzzing', () => {
+  const timed = () => createGame(SAMPLE_BOARD, PLAYERS, { timerSeconds: 10 });
+  const open = (s: GameState) => run(s, { type: 'selectTile', categoryIndex: 0, clueIndex: 0, at: 0 });
+  const left = (s: GameState, now: number) => timeLeft(s.active!.timer!, now);
+
+  it('hides the question and pauses the timer', () => {
+    const s = run(open(timed()), { type: 'buzz', at: 3000 });
+    expect(s.active?.buzzed).toBe(true);
+    expect(left(s, 60_000)).toBe(7000);
+  });
+
+  it('ignores a second buzz and a buzz after the reveal', () => {
+    const buzzed = run(open(timed()), { type: 'buzz', at: 1000 });
+    expect(gameReducer(buzzed, { type: 'buzz', at: 2000 })).toBe(buzzed);
+    const revealed = run(open(timed()), { type: 'revealAnswer', at: 1000 });
+    expect(gameReducer(revealed, { type: 'buzz', at: 2000 })).toBe(revealed);
+  });
+
+  it('brings the question back and resumes the timer after a wrong answer', () => {
+    const s = run(
+      open(timed()),
+      { type: 'buzz', at: 2000 },
+      { type: 'selectPlayer', playerId: 'p1', at: 4000 },
+      { type: 'markWrong', at: 9000 },
+    );
+    expect(s.active?.buzzed).toBe(false);
+    expect(left(s, 10_000)).toBe(7000);
+  });
+
+  it('a false alarm brings the question back', () => {
+    const s = run(open(timed()), { type: 'buzz', at: 2000 }, { type: 'selectPlayer', playerId: null, at: 5000 });
+    expect(s.active?.buzzed).toBe(false);
+    expect(left(s, 6000)).toBe(7000);
+  });
+
+  it('picking a player without pressing buzz first also hides the question', () => {
+    const s = run(open(timed()), { type: 'selectPlayer', playerId: 'p2', at: 1000 });
+    expect(s.active?.buzzed).toBe(true);
+    expect(s.active?.timer?.runningSince).toBeNull();
+  });
+
+  it('cannot buzz when everyone has already answered wrong', () => {
+    let s = open(newGame());
+    for (const id of ['p1', 'p2', 'p3']) {
+      s = run(s, { type: 'selectPlayer', playerId: id, at: 0 }, { type: 'markWrong', at: 0 });
+    }
+    expect(gameReducer(s, { type: 'buzz', at: 0 })).toBe(s);
+  });
+
+  it('is undoable', () => {
+    let session = createSession(open(timed()));
+    session = sessionReducer(session, { type: 'buzz', at: 1000 });
+    session = sessionReducer(session, { type: 'undo' });
+    expect(session.present.active?.buzzed).toBe(false);
+  });
+});
+
 describe('manual adjustment and control', () => {
   it('adjusts a score up or down, on the board or during a clue', () => {
     let s = run(newGame(), { type: 'adjustScore', playerId: 'p3', delta: 500 });

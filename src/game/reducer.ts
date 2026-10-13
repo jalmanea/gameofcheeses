@@ -1,4 +1,4 @@
-import { pauseTimer, resumeTimer, startTimer } from './timer';
+import { pauseTimer, resumeTimer, startTimer, type ClueTimer } from './timer';
 import type { Board, GameAction, GameSettings, GameState, Player, PlayerInput } from './types';
 
 export const MIN_PLAYERS = 2;
@@ -73,6 +73,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           clueIndex: action.clueIndex,
           value: clue.value,
           answerRevealed: false,
+          buzzed: false,
           selectedPlayerId: null,
           wrongPlayerIds: [],
           timer: state.settings.timerSeconds ? startTimer(state.settings.timerSeconds, action.at) : null,
@@ -88,19 +89,38 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return { ...state, active: { ...active, answerRevealed: true, timer } };
     }
 
+    case 'buzz': {
+      const active = state.active;
+      if (!active || active.answerRevealed || active.buzzed) return state;
+      if (active.wrongPlayerIds.length >= state.players.length) return state; // nobody left to buzz
+      return {
+        ...state,
+        active: { ...active, buzzed: true, timer: active.timer && pauseTimer(active.timer, action.at) },
+      };
+    }
+
     case 'selectPlayer': {
       const active = state.active;
-      if (!active || active.selectedPlayerId === action.playerId) return state;
-      if (action.playerId !== null) {
-        if (!state.players.some((p) => p.id === action.playerId)) return state;
-        if (active.wrongPlayerIds.includes(action.playerId)) return state;
+      if (!active) return state;
+      const pause = (t: ClueTimer | null) => (t && !active.answerRevealed ? pauseTimer(t, action.at) : t);
+      const resume = (t: ClueTimer | null) => (t && !active.answerRevealed ? resumeTimer(t, action.at) : t);
+
+      if (action.playerId === null) {
+        // Back to the open question: clears the selection and any buzz (e.g. a false alarm).
+        if (!active.selectedPlayerId && !active.buzzed) return state;
+        return {
+          ...state,
+          active: { ...active, selectedPlayerId: null, buzzed: false, timer: resume(active.timer) },
+        };
       }
-      // The clock pauses while a selected player answers, and resumes if they're unselected.
-      let timer = active.timer;
-      if (timer && !active.answerRevealed) {
-        timer = action.playerId === null ? resumeTimer(timer, action.at) : pauseTimer(timer, action.at);
-      }
-      return { ...state, active: { ...active, selectedPlayerId: action.playerId, timer } };
+      if (active.selectedPlayerId === action.playerId) return state;
+      if (!state.players.some((p) => p.id === action.playerId)) return state;
+      if (active.wrongPlayerIds.includes(action.playerId)) return state;
+      // Picking a player implies a buzz, so it also hides the question and pauses the clock.
+      return {
+        ...state,
+        active: { ...active, selectedPlayerId: action.playerId, buzzed: true, timer: pause(active.timer) },
+      };
     }
 
     case 'markCorrect': {
@@ -124,7 +144,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           ...active,
           selectedPlayerId: null,
           wrongPlayerIds: [...active.wrongPlayerIds, playerId],
-          // The others get whatever time was left.
+          // The question comes back and the others get whatever time was left.
+          buzzed: false,
           timer: active.timer && !active.answerRevealed ? resumeTimer(active.timer, action.at) : active.timer,
         },
       };

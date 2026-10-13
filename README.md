@@ -17,15 +17,16 @@ npm run build   # type-check + production build
 
 | Key | Action |
 |---|---|
-| `Space` | Reveal the answer |
-| `1`–`6` | Select the player who buzzed |
-| `C` / `W` | Mark the selected player correct / wrong |
-| `Esc` | Unselect the player. Otherwise: before the answer is shown, go back to the board (the tile stays open, e.g. after a mis-click); after the answer is shown, close the clue with no one scoring |
+| `Space` | Someone buzzed: hide the question from the players and pause the timer |
+| `1`–`6` | Select the player who buzzed (also hides the question if you skipped `Space`) |
+| `C` / `W` | Mark the selected player correct / wrong (after a wrong answer the question comes back) |
+| `Enter` | Reveal the answer |
+| `Esc` | Cancel a buzz or unselect the player (question comes back). Otherwise: before the answer is shown, go back to the board (the tile stays open, e.g. after a mis-click); after the answer is shown, close the clue with no one scoring |
 | `Ctrl+Z` | Undo (any number of steps) |
 | `F` | Toggle fullscreen |
 
 **Clue timer:** chosen on the setup screen (Off or 5–60 s, default 15 s). It starts when a clue
-opens, pauses while a selected player answers, resumes with the time left after a wrong answer,
+opens, pauses on a buzz (or when a player is selected), resumes with the time left after a wrong answer,
 and stops when the answer is shown. At zero it shows "Time's up!"; the host still decides what
 happens next.
 

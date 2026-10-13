@@ -68,6 +68,11 @@ export interface ActiveTile {
   clueIndex: number;
   value: number;
   answerRevealed: boolean;
+  /**
+   * Someone buzzed: the question is hidden from the players (so nobody buzzes early
+   * just to get more reading time) and the timer is paused until the host judges.
+   */
+  buzzed: boolean;
   /** The player the host picked as having buzzed, awaiting a verdict. */
   selectedPlayerId: string | null;
   /** Players who already answered this clue wrong and are locked out. */
@@ -102,6 +107,7 @@ export interface GameState {
 export type GameAction =
   | { type: 'selectTile'; categoryIndex: number; clueIndex: number; at: number }
   | { type: 'revealAnswer'; at: number }
+  | { type: 'buzz'; at: number }
   | { type: 'selectPlayer'; playerId: string | null; at: number }
   | { type: 'markCorrect' }
   | { type: 'markWrong'; at: number }
