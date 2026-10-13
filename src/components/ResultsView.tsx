@@ -5,7 +5,13 @@ function joinNames(names: string[]): string {
   return names.length <= 1 ? names.join('') : `${names.slice(0, -1).join(', ')} & ${names[names.length - 1]}`;
 }
 
-export function ResultsView({ state, onNewGame }: { state: GameState; onNewGame: () => void }) {
+interface Props {
+  state: GameState;
+  onExit: () => void;
+  onRematch: () => void;
+}
+
+export function ResultsView({ state, onExit, onRematch }: Props) {
   const standings = getStandings(state.players);
   const winners = getWinners(state.players);
   const winnerIds = new Set(winners.map((w) => w.id));
@@ -28,9 +34,14 @@ export function ResultsView({ state, onNewGame }: { state: GameState; onNewGame:
           </li>
         ))}
       </ol>
-      <button className="btn btn-primary" onClick={onNewGame}>
-        New game
-      </button>
+      <div className="row">
+        <button className="btn btn-primary" onClick={onRematch}>
+          Play this board again
+        </button>
+        <button className="btn" onClick={onExit}>
+          Back to library
+        </button>
+      </div>
     </div>
   );
 }

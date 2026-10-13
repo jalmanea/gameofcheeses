@@ -19,10 +19,12 @@ interface Props {
   state: GameState;
   canUndo: boolean;
   dispatch: (action: SessionAction) => void;
-  onNewGame: () => void;
+  /** Back to the library; the game stays saved and can be resumed. */
+  onExit: () => void;
+  onRematch: () => void;
 }
 
-export function GameScreen({ state, canUndo, dispatch, onNewGame }: Props) {
+export function GameScreen({ state, canUndo, dispatch, onExit, onRematch }: Props) {
   const [adjusting, setAdjusting] = useState(false);
   const escLabel = state.active ? escapeLabel(state.active) : null;
 
@@ -43,13 +45,8 @@ export function GameScreen({ state, canUndo, dispatch, onNewGame }: Props) {
         <button className="btn btn-small" onClick={toggleFullscreen}>
           ⛶ Fullscreen
         </button>
-        <button
-          className="btn btn-small"
-          onClick={() => {
-            if (state.phase === 'results' || window.confirm('End this game and start a new one?')) onNewGame();
-          }}
-        >
-          New game
+        <button className="btn btn-small" onClick={onExit} title="The game is saved; resume it from the library">
+          Exit to library
         </button>
       </header>
 
@@ -58,7 +55,7 @@ export function GameScreen({ state, canUndo, dispatch, onNewGame }: Props) {
       <main className="stage">
         {state.phase === 'board' && <BoardView state={state} dispatch={dispatch} />}
         {state.phase === 'clue' && state.active && <ClueView state={state} active={state.active} dispatch={dispatch} />}
-        {state.phase === 'results' && <ResultsView state={state} onNewGame={onNewGame} />}
+        {state.phase === 'results' && <ResultsView state={state} onExit={onExit} onRematch={onRematch} />}
       </main>
 
       {state.phase !== 'results' && <Scoreboard state={state} dispatch={dispatch} />}

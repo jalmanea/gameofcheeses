@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { MAX_PLAYERS, MIN_PLAYERS } from '../game/reducer';
 import { DEFAULT_TIMER_SECONDS, TIMER_CHOICES } from '../game/timer';
-import type { GameSettings, PlayerInput } from '../game/types';
+import type { Board, GameSettings, PlayerInput } from '../game/types';
 
 export const PLAYER_COLORS = [
   { name: 'Red', value: '#d62828' },
@@ -16,12 +16,25 @@ function nextFreeColor(players: PlayerInput[]): string {
   return (PLAYER_COLORS.find((c) => !players.some((p) => p.color === c.value)) ?? PLAYER_COLORS[0]).value;
 }
 
-export function SetupScreen({ onStart }: { onStart: (players: PlayerInput[], settings: GameSettings) => void }) {
+interface Props {
+  board: Board;
+  /** Players and settings from the last game, to make a rematch quick. */
+  initialPlayers?: PlayerInput[];
+  initialSettings?: GameSettings;
+  onStart: (players: PlayerInput[], settings: GameSettings) => void;
+  onBack: () => void;
+}
+
+export function SetupScreen({ board, initialPlayers, initialSettings, onStart, onBack }: Props) {
   const [players, setPlayers] = useState<PlayerInput[]>(() =>
-    PLAYER_COLORS.slice(0, 3).map((c) => ({ name: '', color: c.value })),
+    initialPlayers && initialPlayers.length >= MIN_PLAYERS
+      ? initialPlayers.map((p) => ({ name: p.name, color: p.color }))
+      : PLAYER_COLORS.slice(0, 3).map((c) => ({ name: '', color: c.value })),
   );
   const [error, setError] = useState<string | null>(null);
-  const [timerSeconds, setTimerSeconds] = useState<number | null>(DEFAULT_TIMER_SECONDS);
+  const [timerSeconds, setTimerSeconds] = useState<number | null>(
+    initialSettings ? initialSettings.timerSeconds : DEFAULT_TIMER_SECONDS,
+  );
 
   const update = (i: number, patch: Partial<PlayerInput>) =>
     setPlayers((ps) => ps.map((p, j) => (j === i ? { ...p, ...patch } : p)));
@@ -42,6 +55,14 @@ export function SetupScreen({ onStart }: { onStart: (players: PlayerInput[], set
     <main className="screen setup">
       <h1 className="title">Game of Cheeses</h1>
       <form onSubmit={submit} className="panel">
+        <p className="setup-board">
+          <button type="button" className="btn btn-small btn-ghost" onClick={onBack}>
+            ← Back
+          </button>
+          <span>
+            Board: <strong>{board.title}</strong>
+          </span>
+        </p>
         <h2>Players</h2>
         <p className="hint">
           {MIN_PLAYERS}–{MAX_PLAYERS} players or teams. Players are fixed once the game starts.
