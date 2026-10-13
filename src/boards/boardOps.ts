@@ -1,5 +1,6 @@
 // Pure helpers for creating, resizing and checking boards. No React, no storage.
-import type { Board, Category, CheeseSettings, Clue } from '../game/types';
+import { isPlayable } from '../game/cheeses';
+import type { Board, Category, CheeseId, CheeseSettings, Clue } from '../game/types';
 
 export const MIN_CATEGORIES = 3;
 export const MAX_CATEGORIES = 8;
@@ -46,9 +47,21 @@ export function addCategory(board: Board): Board {
   return { ...board, categories: [...board.categories, blankCategory(rowCount(board))] };
 }
 
+export const MAX_RANDOM_CHEESES = 10;
+
+type Fixed = CheeseSettings['fixed'];
+
+function withFixed(board: Board, fixed: Fixed): Board {
+  return { ...board, cheeseSettings: { ...board.cheeseSettings, fixed } };
+}
+
 export function removeCategory(board: Board, index: number): Board {
   if (board.categories.length <= MIN_CATEGORIES) return board;
-  return { ...board, categories: board.categories.filter((_, i) => i !== index) };
+  // Fixed cheeses in the removed column go with it; later columns shift left.
+  const fixed = board.cheeseSettings.fixed
+    .filter((f) => f.categoryIndex !== index)
+    .map((f) => (f.categoryIndex > index ? { ...f, categoryIndex: f.categoryIndex - 1 } : f));
+  return withFixed({ ...board, categories: board.categories.filter((_, i) => i !== index) }, fixed);
 }
 
 export function moveCategory(board: Board, index: number, delta: -1 | 1): Board {
@@ -56,19 +69,51 @@ export function moveCategory(board: Board, index: number, delta: -1 | 1): Board 
   if (target < 0 || target >= board.categories.length) return board;
   const categories = [...board.categories];
   [categories[index], categories[target]] = [categories[target], categories[index]];
-  return { ...board, categories };
+  // Fixed cheeses move with their category.
+  const fixed = board.cheeseSettings.fixed.map((f) =>
+    f.categoryIndex === index
+      ? { ...f, categoryIndex: target }
+      : f.categoryIndex === target
+        ? { ...f, categoryIndex: index }
+        : f,
+  );
+  return withFixed({ ...board, categories }, fixed);
 }
 
 /** Grows or shrinks every category to `rows` clues; new rows get default values. */
 export function setRowCount(board: Board, rows: number): Board {
   const n = Math.min(MAX_ROWS, Math.max(MIN_ROWS, rows));
-  return {
-    ...board,
-    categories: board.categories.map((c) => ({
-      ...c,
-      clues: Array.from({ length: n }, (_, i) => c.clues[i] ?? blankClue(i)),
-    })),
-  };
+  return withFixed(
+    {
+      ...board,
+      categories: board.categories.map((c) => ({
+        ...c,
+        clues: Array.from({ length: n }, (_, i) => c.clues[i] ?? blankClue(i)),
+      })),
+    },
+    board.cheeseSettings.fixed.filter((f) => f.clueIndex < n),
+  );
+}
+
+/** The cheese the author fixed on this tile, if any. */
+export function fixedCheeseAt(board: Board, categoryIndex: number, clueIndex: number): CheeseId | null {
+  return board.cheeseSettings.fixed.find((f) => f.categoryIndex === categoryIndex && f.clueIndex === clueIndex)?.cheese ?? null;
+}
+
+/** Sets (or with null, clears) the fixed cheese on one tile. */
+export function setFixedCheese(board: Board, categoryIndex: number, clueIndex: number, cheese: CheeseId | null): Board {
+  const others = board.cheeseSettings.fixed.filter((f) => !(f.categoryIndex === categoryIndex && f.clueIndex === clueIndex));
+  return withFixed(board, cheese ? [...others, { categoryIndex, clueIndex, cheese }] : others);
+}
+
+export function setRandomCheeseCount(board: Board, count: number): Board {
+  const randomCount = Math.min(MAX_RANDOM_CHEESES, Math.max(0, Math.floor(count)));
+  return { ...board, cheeseSettings: { ...board.cheeseSettings, randomCount } };
+}
+
+export function toggleCheeseInPool(board: Board, cheese: CheeseId, on: boolean): Board {
+  const pool = board.cheeseSettings.pool.filter((c) => c !== cheese);
+  return { ...board, cheeseSettings: { ...board.cheeseSettings, pool: on ? [...pool, cheese] : pool } };
 }
 
 export function setCategoryName(board: Board, index: number, name: string): Board {
@@ -110,7 +155,9 @@ export type BoardWarning =
   | { kind: 'emptyCategory'; categoryIndex: number }
   | { kind: 'emptyClue'; categoryIndex: number; clueIndex: number }
   | { kind: 'emptyAnswer'; categoryIndex: number; clueIndex: number }
-  | { kind: 'badValue'; categoryIndex: number; clueIndex: number };
+  | { kind: 'badValue'; categoryIndex: number; clueIndex: number }
+  | { kind: 'emptyCheesePool' }
+  | { kind: 'unplayableCheese'; cheese: CheeseId };
 
 /** Problems worth flagging before play. A board with warnings can still be played. */
 export function validateBoard(board: Board): BoardWarning[] {
@@ -126,6 +173,11 @@ export function validateBoard(board: Board): BoardWarning[] {
       }
     });
   });
+  const cs = board.cheeseSettings;
+  if (cs.randomCount > 0 && !cs.pool.some(isPlayable)) warnings.push({ kind: 'emptyCheesePool' });
+  // Cheeses from a newer board file that this version can't play yet are skipped in games.
+  const unplayable = new Set([...(cs.randomCount > 0 ? cs.pool : []), ...cs.fixed.map((f) => f.cheese)].filter((c) => !isPlayable(c)));
+  unplayable.forEach((cheese) => warnings.push({ kind: 'unplayableCheese', cheese }));
   return warnings;
 }
 
@@ -143,5 +195,8 @@ export function summarizeWarnings(warnings: BoardWarning[]): string[] {
   if (answers) lines.push(`${plural(answers, 'answer is', 'answers are')} empty`);
   const values = count('badValue');
   if (values) lines.push(`${plural(values, 'value is', 'values are')} not a positive number`);
+  if (count('emptyCheesePool')) lines.push('Random cheeses are on, but no cheeses are picked for the pool');
+  const unplayable = count('unplayableCheese');
+  if (unplayable) lines.push(`${plural(unplayable, 'cheese', 'cheeses')} can't be played yet and will be skipped`);
   return lines;
 }

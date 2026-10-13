@@ -9,6 +9,7 @@ import { exportBoard, exportFileName, importBoard } from './boards/boardJson';
 import { loadLibrary, newBoardId, saveLibrary, upsertBoard } from './boards/library';
 import { downloadText } from './download';
 import { LibraryScreen } from './components/LibraryScreen';
+import { CheeseGuide } from './components/CheeseGuide';
 import { BoardEditor } from './components/BoardEditor';
 import { SetupScreen } from './components/SetupScreen';
 import { GameScreen } from './components/GameScreen';
@@ -18,6 +19,7 @@ type Screen =
   | { kind: 'library' }
   | { kind: 'editor'; board: Board; isNew: boolean }
   | { kind: 'setup'; board: Board }
+  | { kind: 'guide' }
   | { kind: 'game' };
 
 /** Wraps sessionReducer so the whole session can also be replaced (new game / discard). */
@@ -99,9 +101,13 @@ export function App() {
             updateBoards([...boards, result.board]);
             return null;
           }}
+          onGuide={() => setScreen({ kind: 'guide' })}
           onRestoreSample={() => updateBoards([...boards, { ...structuredClone(SAMPLE_BOARD), id: newBoardId() }])}
         />
       );
+
+    case 'guide':
+      return <CheeseGuide onBack={() => setScreen({ kind: 'library' })} />;
 
     case 'editor':
       return (

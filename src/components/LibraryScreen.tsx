@@ -19,6 +19,7 @@ interface Props {
   /** Returns an error message, or null on success. */
   onImport: (json: string) => string | null;
   onRestoreSample: () => void;
+  onGuide: () => void;
 }
 
 export function LibraryScreen(props: Props) {
@@ -41,6 +42,9 @@ export function LibraryScreen(props: Props) {
   return (
     <main className="screen library">
       <h1 className="title">Game of Cheeses</h1>
+      <button className="btn btn-small" onClick={props.onGuide}>
+        🧀 Cheese Guide
+      </button>
 
       {props.storageError && (
         <p className="error panel-wide">

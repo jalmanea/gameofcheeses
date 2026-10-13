@@ -10,6 +10,10 @@ import {
   resetValues,
   rowCount,
   setCategoryName,
+  setFixedCheese,
+  fixedCheeseAt,
+  setRandomCheeseCount,
+  toggleCheeseInPool,
   setRowCount,
   summarizeWarnings,
   updateClue,
@@ -104,6 +108,53 @@ describe('board operations', () => {
       '1 value is not a positive number',
     ]);
     expect(validateBoard(SAMPLE_BOARD)).toEqual([]);
+  });
+});
+
+describe('cheese settings in the editor', () => {
+  const withFixed = () => {
+    let b = createBlankBoard('x', 4, 4);
+    b = setFixedCheese(b, 1, 3, 'swiss');
+    b = setFixedCheese(b, 2, 0, 'gouda');
+    return b;
+  };
+
+  it('sets, replaces and clears a fixed cheese', () => {
+    let b = withFixed();
+    expect(fixedCheeseAt(b, 1, 3)).toBe('swiss');
+    b = setFixedCheese(b, 1, 3, 'brie');
+    expect(b.cheeseSettings.fixed.filter((f) => f.categoryIndex === 1)).toEqual([{ categoryIndex: 1, clueIndex: 3, cheese: 'brie' }]);
+    b = setFixedCheese(b, 1, 3, null);
+    expect(fixedCheeseAt(b, 1, 3)).toBeNull();
+  });
+
+  it('keeps fixed cheeses with their clue when categories move or are removed', () => {
+    const moved = moveCategory(withFixed(), 1, 1);
+    expect(fixedCheeseAt(moved, 2, 3)).toBe('swiss');
+    expect(fixedCheeseAt(moved, 1, 0)).toBe('gouda');
+    const removed = removeCategory(withFixed(), 1);
+    expect(removed.cheeseSettings.fixed).toEqual([{ categoryIndex: 1, clueIndex: 0, cheese: 'gouda' }]);
+  });
+
+  it('drops fixed cheeses on removed rows', () => {
+    const b = setRowCount(withFixed(), 3);
+    expect(b.cheeseSettings.fixed).toEqual([{ categoryIndex: 2, clueIndex: 0, cheese: 'gouda' }]);
+  });
+
+  it('clamps the random count and toggles the pool', () => {
+    let b = setRandomCheeseCount(createBlankBoard('x'), 50);
+    expect(b.cheeseSettings.randomCount).toBe(10);
+    b = toggleCheeseInPool(toggleCheeseInPool(b, 'feta', true), 'swiss', true);
+    expect(b.cheeseSettings.pool).toEqual(['feta', 'swiss']);
+    b = toggleCheeseInPool(b, 'feta', false);
+    expect(b.cheeseSettings.pool).toEqual(['swiss']);
+  });
+
+  it('warns about an empty pool and cheeses that cannot be played yet', () => {
+    const b = { ...SAMPLE_BOARD, cheeseSettings: { ...SAMPLE_BOARD.cheeseSettings, randomCount: 2, pool: [] } };
+    expect(summarizeWarnings(validateBoard(b))).toEqual(['Random cheeses are on, but no cheeses are picked for the pool']);
+    const later = setFixedCheese(SAMPLE_BOARD, 0, 0, 'platter');
+    expect(summarizeWarnings(validateBoard(later))).toEqual(["1 cheese can't be played yet and will be skipped"]);
   });
 });
 

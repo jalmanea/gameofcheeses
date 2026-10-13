@@ -57,16 +57,32 @@ export interface Player {
 
 export interface TileState {
   played: boolean;
-  /** Unused in milestone 1; set when cheeses are placed (milestone 3). */
+  /** Hidden cheese on this tile, placed when the game starts. */
   cheese?: CheeseId;
   agedTurns?: number;
 }
+
+/**
+ * Where a clue is in its flow:
+ * - cheese: the Cheese Reveal splash is showing
+ * - wager: Gouda, waiting for the picker's wager
+ * - handoff: Limburger, waiting for the picker to choose who answers
+ * - clue: the clue is in play
+ */
+export type ClueStage = 'cheese' | 'wager' | 'handoff' | 'clue';
 
 /** The clue currently on screen. */
 export interface ActiveTile {
   categoryIndex: number;
   clueIndex: number;
+  /** Points at stake: the clue value, doubled by Mozzarella, or the Gouda wager. */
   value: number;
+  cheese: CheeseId | null;
+  stage: ClueStage;
+  /** Who had board control when the tile was picked. */
+  pickerId: string;
+  /** Set when one player answers alone (Gouda, Limburger); nobody else can be selected. */
+  soloPlayerId: string | null;
   answerRevealed: boolean;
   /**
    * Someone buzzed: the question is hidden from the players (so nobody buzzes early
@@ -77,7 +93,9 @@ export interface ActiveTile {
   selectedPlayerId: string | null;
   /** Players who already answered this clue wrong and are locked out. */
   wrongPlayerIds: string[];
-  /** Countdown for this clue, or null when the timer is off. */
+  /** Players marked correct so far (more than one only with Brie). */
+  correctPlayerIds: string[];
+  /** Countdown for this clue (starts once the clue is in play), or null when off. */
   timer: ClueTimer | null;
 }
 
@@ -87,6 +105,8 @@ export type Phase = 'board' | 'clue' | 'results';
 export interface GameSettings {
   /** Seconds on the clue timer, or null for no timer. */
   timerSeconds: number | null;
+  /** Cheeses switched on for this game (from the board's cheeses). */
+  cheeses: CheeseId[];
 }
 
 export interface GameState {
@@ -106,10 +126,13 @@ export interface GameState {
  */
 export type GameAction =
   | { type: 'selectTile'; categoryIndex: number; clueIndex: number; at: number }
+  | { type: 'dismissCheese'; at: number }
+  | { type: 'setWager'; amount: number; at: number }
+  | { type: 'handOff'; playerId: string; at: number }
   | { type: 'revealAnswer'; at: number }
   | { type: 'buzz'; at: number }
   | { type: 'selectPlayer'; playerId: string | null; at: number }
-  | { type: 'markCorrect' }
+  | { type: 'markCorrect'; at: number }
   | { type: 'markWrong'; at: number }
   | { type: 'noOne' }
   | { type: 'cancelTile' }

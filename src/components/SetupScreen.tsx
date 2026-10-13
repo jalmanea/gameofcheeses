@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { MAX_PLAYERS, MIN_PLAYERS } from '../game/reducer';
+import { boardCheeses, CHEESES } from '../game/cheeses';
 import { DEFAULT_TIMER_SECONDS, TIMER_CHOICES } from '../game/timer';
 import type { Board, GameSettings, PlayerInput } from '../game/types';
 
@@ -36,6 +37,12 @@ export function SetupScreen({ board, initialPlayers, initialSettings, onStart, o
     initialSettings ? initialSettings.timerSeconds : DEFAULT_TIMER_SECONDS,
   );
 
+  const available = boardCheeses(board);
+  const [cheeses, setCheeses] = useState(available);
+  const { randomCount, fixed } = board.cheeseSettings;
+  const fixedOn = fixed.filter((f) => cheeses.includes(f.cheese)).length;
+  const randomOn = available.some((c) => cheeses.includes(c) && board.cheeseSettings.pool.includes(c)) ? randomCount : 0;
+
   const update = (i: number, patch: Partial<PlayerInput>) =>
     setPlayers((ps) => ps.map((p, j) => (j === i ? { ...p, ...patch } : p)));
 
@@ -48,7 +55,7 @@ export function SetupScreen({ board, initialPlayers, initialSettings, onStart, o
       setError('Each player needs a different name.');
       return;
     }
-    onStart(named, { timerSeconds });
+    onStart(named, { timerSeconds, cheeses });
   };
 
   return (
@@ -109,6 +116,42 @@ export function SetupScreen({ board, initialPlayers, initialSettings, onStart, o
             </li>
           ))}
         </ol>
+        <h2>Cheeses</h2>
+        {available.length === 0 ? (
+          <p className="hint">This board has no cheeses. Add some in the board editor.</p>
+        ) : (
+          <>
+            <p className="hint">
+              Switch off any cheese you don't want this game.{' '}
+              {randomOn + fixedOn > 0
+                ? `Up to ${randomOn + fixedOn} cheese${randomOn + fixedOn === 1 ? '' : 's'} will be hidden on the board.`
+                : 'No cheeses will be hidden.'}
+            </p>
+            <ul className="setup-cheeses">
+              {available.map((id) => {
+                const c = CHEESES[id];
+                const on = cheeses.includes(id);
+                return (
+                  <li key={id}>
+                    <label className={`setup-cheese${on ? '' : ' setup-cheese-off'}`}>
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        onChange={(e) => setCheeses((cs) => (e.target.checked ? [...cs, id] : cs.filter((x) => x !== id)))}
+                      />
+                      <span className="cheese-emoji" aria-hidden>
+                        {c.emoji}
+                      </span>
+                      <strong>{c.name}</strong>
+                      <span className="hint">{c.rule}</span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
+
         <h2>Clue timer</h2>
         <p className="hint">Counts down while a clue is shown. It pauses while a player answers.</p>
         <div className="timer-choices" role="radiogroup" aria-label="Clue timer">

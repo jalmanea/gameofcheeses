@@ -2,7 +2,8 @@
 
 A cheese-themed, Jeopardy-style quiz game for one screen, run by a host. See [SPEC.md](SPEC.md)
 for the full design. Done so far: **milestone 1** (playable core: players, scoring, undo, auto-save, results) and
-**milestone 2** (board library, editor, JSON import/export).
+**milestone 2** (board library, editor, JSON import/export) and **milestone 3** (cheeses: reveal
+splash, Cheese Guide, and Gouda, Swiss, Limburger, Brie, Mozzarella, Feta).
 
 ## Run
 
@@ -26,11 +27,31 @@ leaving with unsaved changes. **Test play** saves the board and starts a game wi
 Boards are stored in this browser's localStorage, so export the ones you want to keep or share.
 Imported files are checked before they're added and always come in as a new board.
 
+## Cheeses
+
+Some tiles hide a cheese with a special rule. When one is picked, a Cheese Reveal card shows
+first (`Space` to continue), then the rule applies:
+
+| Cheese | Rule |
+|---|---|
+| Golden Gouda | The picker wagers 0 up to max(their score, the top clue value) and answers alone |
+| Swiss | Wrong answers cost nothing |
+| Limburger | The picker can't answer; they choose who gets the clue (`1`–`6`), and that player answers alone |
+| Brie | Several players can be marked correct and all score; close with `Esc` (Done). The first correct player takes control |
+| Mozzarella | Double value; the answer has two parts |
+| Feta | A correct answer also takes 10% of the leader's score (each tied leader; nothing if you lead) |
+
+In the editor, **🧀 Cheeses** sets how many random cheeses to hide, which cheeses they're picked
+from, and lets you fix a cheese on a specific clue. At game setup the host can switch off any of
+the board's cheeses for that game. Played tiles show the cheese they hid. The **Cheese Guide**
+(from the library) lists every cheese; Aged Parmesan, Blue cheese, Cheese Wheel and Cheese
+Platter are marked "coming soon".
+
 ## Host keyboard controls
 
 | Key | Action |
 |---|---|
-| `Space` | Someone buzzed: hide the question from the players and pause the timer |
+| `Space` | Continue past a Cheese Reveal; during a clue, someone buzzed: hide the question and pause the timer |
 | `1`–`6` | Select the player who buzzed (also hides the question if you skipped `Space`) |
 | `C` / `W` | Mark the selected player correct / wrong (after a wrong answer the question comes back) |
 | `Enter` | Reveal the answer |

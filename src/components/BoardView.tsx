@@ -1,3 +1,4 @@
+import { CHEESES } from '../game/cheeses';
 import type { SessionAction } from '../game/history';
 import type { GameState } from '../game/types';
 
@@ -35,7 +36,7 @@ export function BoardView({ state, dispatch }: Props) {
         ))}
         {board.categories.map((cat, ci) =>
           cat.clues.map((clue, ri) => {
-            const played = tiles[ci][ri].played;
+            const { played, cheese } = tiles[ci][ri];
             return (
               <button
                 key={`${ci}-${ri}`}
@@ -45,7 +46,8 @@ export function BoardView({ state, dispatch }: Props) {
                 aria-label={`${cat.name} for ${clue.value}${played ? ' (played)' : ''}`}
                 onClick={() => dispatch({ type: 'selectTile', categoryIndex: ci, clueIndex: ri, at: Date.now() })}
               >
-                {played ? '' : clue.value}
+                {/* Once played, a tile shows the cheese it hid (if any). */}
+                {played ? (cheese ? <span title={CHEESES[cheese].name}>{CHEESES[cheese].emoji}</span> : '') : clue.value}
               </button>
             );
           }),

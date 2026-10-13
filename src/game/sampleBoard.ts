@@ -59,8 +59,8 @@ export const SAMPLE_BOARD: Board = {
   ],
   platterPrompts: [],
   cheeseSettings: {
-    randomCount: 0,
-    pool: [],
+    randomCount: 3,
+    pool: ['gouda', 'swiss', 'limburger', 'brie', 'mozzarella', 'feta'],
     fixed: [],
     platterPotMultiplier: 2,
   },

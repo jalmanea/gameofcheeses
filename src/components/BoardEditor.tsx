@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import {
   addCategory,
+  fixedCheeseAt,
   MAX_CATEGORIES,
+  MAX_RANDOM_CHEESES,
   MAX_ROWS,
   MAX_TITLE_LENGTH,
   MIN_CATEGORIES,
@@ -11,12 +13,16 @@ import {
   resetValues,
   rowCount,
   setCategoryName,
+  setFixedCheese,
+  setRandomCheeseCount,
   setRowCount,
+  toggleCheeseInPool,
   summarizeWarnings,
   updateClue,
   validateBoard,
 } from '../boards/boardOps';
-import type { Board } from '../game/types';
+import { CHEESE_ORDER, CHEESES, PLAYABLE_CHEESES } from '../game/cheeses';
+import type { Board, CheeseId } from '../game/types';
 
 interface Props {
   /** The board as last saved (or a new blank board). */
@@ -34,6 +40,8 @@ const isEmpty = (s: string) => !s.trim();
 export function BoardEditor({ initial, isNew, onSave, onClose, onTestPlay }: Props) {
   const [board, setBoard] = useState(initial);
   const [saved, setSaved] = useState(isNew ? null : initial);
+  const [showCheeses, setShowCheeses] = useState(false);
+  const cs = board.cheeseSettings;
   const dirty = saved === null || JSON.stringify(board) !== JSON.stringify(saved);
   const rows = rowCount(board);
   const warnings = summarizeWarnings(validateBoard(board));
@@ -118,6 +126,13 @@ export function BoardEditor({ initial, isNew, onSave, onClose, onTestPlay }: Pro
             ({MIN_ROWS}–{MAX_ROWS})
           </span>
         </span>
+        <button
+          className={`btn btn-small${showCheeses ? ' btn-on' : ''}`}
+          aria-expanded={showCheeses}
+          onClick={() => setShowCheeses((v) => !v)}
+        >
+          🧀 Cheeses ({cs.randomCount} random{cs.fixed.length ? `, ${cs.fixed.length} fixed` : ''})
+        </button>
         <button className="btn btn-small btn-ghost" onClick={() => setBoard(resetValues(board))}>
           Reset values to 200, 400…
         </button>
@@ -127,6 +142,52 @@ export function BoardEditor({ initial, isNew, onSave, onClose, onTestPlay }: Pro
           <span className="ok">✓ Ready to play</span>
         )}
       </div>
+
+      {showCheeses && (
+        <section className="editor-cheeses" aria-label="Cheese settings">
+          <span className="stepper">
+            Random cheeses
+            <button
+              className="btn btn-small"
+              disabled={cs.randomCount <= 0}
+              onClick={() => setBoard(setRandomCheeseCount(board, cs.randomCount - 1))}
+              aria-label="Fewer random cheeses"
+            >
+              −
+            </button>
+            <strong>{cs.randomCount}</strong>
+            <button
+              className="btn btn-small"
+              disabled={cs.randomCount >= MAX_RANDOM_CHEESES}
+              onClick={() => setBoard(setRandomCheeseCount(board, cs.randomCount + 1))}
+              aria-label="More random cheeses"
+            >
+              +
+            </button>
+          </span>
+          <span className="editor-pool">
+            <span>Picked from:</span>
+            {CHEESE_ORDER.map((id) => {
+              const c = CHEESES[id];
+              return (
+                <label key={id} className={`pool-chip${c.playable ? '' : ' pool-chip-soon'}`} title={c.playable ? c.rule : 'Coming soon'}>
+                  <input
+                    type="checkbox"
+                    disabled={!c.playable}
+                    checked={cs.pool.includes(id)}
+                    onChange={(e) => setBoard(toggleCheeseInPool(board, id, e.target.checked))}
+                  />
+                  {c.emoji} {c.name}
+                </label>
+              );
+            })}
+          </span>
+          <span className="hint">
+            Random cheeses land on different tiles each game. To always hide a cheese on a particular clue, pick it in that clue's
+            cheese menu below.
+          </span>
+        </section>
+      )}
 
       <div className="editor-scroll">
         <div className="editor-grid" style={{ gridTemplateColumns: `repeat(${board.categories.length}, minmax(11em, 1fr))` }}>
@@ -196,6 +257,12 @@ export function BoardEditor({ initial, isNew, onSave, onClose, onTestPlay }: Pro
                       aria-label={`${label} answer`}
                       onChange={(e) => setBoard(updateClue(board, ci, ri, { answer: e.target.value }))}
                     />
+                    <FixedCheese
+                      cheese={fixedCheeseAt(board, ci, ri)}
+                      editing={showCheeses}
+                      label={label}
+                      onChange={(cheese) => setBoard(setFixedCheese(board, ci, ri, cheese))}
+                    />
                   </div>
                 );
               })}
@@ -204,5 +271,34 @@ export function BoardEditor({ initial, isNew, onSave, onClose, onTestPlay }: Pro
         </div>
       </div>
     </div>
+  );
+}
+
+/** A clue's fixed cheese: a badge normally, a menu while the cheese panel is open. */
+function FixedCheese(props: { cheese: CheeseId | null; editing: boolean; label: string; onChange: (c: CheeseId | null) => void }) {
+  const { cheese, editing } = props;
+  if (!editing) {
+    return cheese ? (
+      <span className="fixed-cheese" title={`Always hides ${CHEESES[cheese].name}`}>
+        {CHEESES[cheese].emoji} {CHEESES[cheese].name}
+      </span>
+    ) : null;
+  }
+  // Keep a non-playable cheese (from an imported file) selectable so it isn't silently dropped.
+  const options = cheese && !PLAYABLE_CHEESES.includes(cheese) ? [...PLAYABLE_CHEESES, cheese] : PLAYABLE_CHEESES;
+  return (
+    <select
+      className="text-input fixed-cheese-select"
+      value={cheese ?? ''}
+      aria-label={`${props.label} fixed cheese`}
+      onChange={(e) => props.onChange((e.target.value || null) as CheeseId | null)}
+    >
+      <option value="">No fixed cheese</option>
+      {options.map((id) => (
+        <option key={id} value={id}>
+          {CHEESES[id].emoji} {CHEESES[id].name}
+        </option>
+      ))}
+    </select>
   );
 }

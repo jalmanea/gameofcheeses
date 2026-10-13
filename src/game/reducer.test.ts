@@ -89,7 +89,7 @@ describe('judging', () => {
   const open = (s: GameState) => run(s, { type: 'selectTile', categoryIndex: 1, clueIndex: 1, at: 0 }); // 400
 
   it('correct adds the value, gives board control and closes the tile', () => {
-    const s = run(open(newGame()), { type: 'selectPlayer', playerId: 'p2', at: 0 }, { type: 'markCorrect' });
+    const s = run(open(newGame()), { type: 'selectPlayer', playerId: 'p2', at: 0 }, { type: 'markCorrect', at: 0 });
     expect(score(s, 'p2')).toBe(400);
     expect(s.controlPlayerId).toBe('p2');
     expect(s.tiles[1][1].played).toBe(true);
@@ -110,7 +110,7 @@ describe('judging', () => {
   it('locks out a player who answered wrong for the rest of that clue', () => {
     const s = run(open(newGame()), { type: 'selectPlayer', playerId: 'p2', at: 0 }, { type: 'markWrong', at: 0 });
     expect(gameReducer(s, { type: 'selectPlayer', playerId: 'p2', at: 0 })).toBe(s);
-    const after = run(s, { type: 'selectPlayer', playerId: 'p3', at: 0 }, { type: 'markCorrect' });
+    const after = run(s, { type: 'selectPlayer', playerId: 'p3', at: 0 }, { type: 'markCorrect', at: 0 });
     expect(score(after, 'p2')).toBe(-400);
     expect(score(after, 'p3')).toBe(400);
     // The lockout doesn't carry over to the next clue.
@@ -120,7 +120,7 @@ describe('judging', () => {
 
   it('ignores correct/wrong when no player is selected', () => {
     const s = open(newGame());
-    expect(gameReducer(s, { type: 'markCorrect' })).toBe(s);
+    expect(gameReducer(s, { type: 'markCorrect', at: 0 })).toBe(s);
     expect(gameReducer(s, { type: 'markWrong', at: 0 })).toBe(s);
   });
 
@@ -174,7 +174,7 @@ describe('judging', () => {
 });
 
 describe('clue timer', () => {
-  const timed = () => createGame(SAMPLE_BOARD, PLAYERS, { timerSeconds: 10 });
+  const timed = () => createGame(SAMPLE_BOARD, PLAYERS, { timerSeconds: 10, cheeses: [] });
   const open = (s: GameState, at = 1000) => run(s, { type: 'selectTile', categoryIndex: 0, clueIndex: 0, at });
   const left = (s: GameState, now: number) => timeLeft(s.active!.timer!, now);
 
@@ -231,7 +231,7 @@ describe('clue timer', () => {
 });
 
 describe('buzzing', () => {
-  const timed = () => createGame(SAMPLE_BOARD, PLAYERS, { timerSeconds: 10 });
+  const timed = () => createGame(SAMPLE_BOARD, PLAYERS, { timerSeconds: 10, cheeses: [] });
   const open = (s: GameState) => run(s, { type: 'selectTile', categoryIndex: 0, clueIndex: 0, at: 0 });
   const left = (s: GameState, now: number) => timeLeft(s.active!.timer!, now);
 
@@ -314,7 +314,7 @@ describe('game end', () => {
     let s = createGame(TINY_BOARD, PLAYERS);
     s = run(s, { type: 'selectTile', categoryIndex: 0, clueIndex: 0, at: 0 }, { type: 'revealAnswer', at: 0 }, { type: 'noOne' });
     expect(s.phase).toBe('board');
-    s = run(s, { type: 'selectTile', categoryIndex: 0, clueIndex: 1, at: 0 }, { type: 'selectPlayer', playerId: 'p2', at: 0 }, { type: 'markCorrect' });
+    s = run(s, { type: 'selectTile', categoryIndex: 0, clueIndex: 1, at: 0 }, { type: 'selectPlayer', playerId: 'p2', at: 0 }, { type: 'markCorrect', at: 0 });
     expect(s.phase).toBe('results');
     expect(score(s, 'p2')).toBe(200);
   });
@@ -374,7 +374,7 @@ describe('undo history', () => {
       { type: 'selectPlayer', playerId: 'p1', at: 0 },
       { type: 'markWrong', at: 0 },
       { type: 'selectPlayer', playerId: 'p2', at: 0 },
-      { type: 'markCorrect' },
+      { type: 'markCorrect', at: 0 },
     );
     expect(score(s.present, 'p2')).toBe(200);
 
@@ -416,7 +416,7 @@ describe('undo history', () => {
   });
 
   it('does not record ignored actions', () => {
-    const s = apply({ type: 'markCorrect' }, { type: 'revealAnswer', at: 0 });
+    const s = apply({ type: 'markCorrect', at: 0 }, { type: 'revealAnswer', at: 0 });
     expect(s.past).toHaveLength(0);
   });
 

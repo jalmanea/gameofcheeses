@@ -1,19 +1,13 @@
 import { useState } from 'react';
 import type { SessionAction } from '../game/history';
-import type { ActiveTile, GameState } from '../game/types';
+import type { GameState } from '../game/types';
+import { escapeAction } from '../game/reducer';
 import { toggleFullscreen } from '../fullscreen';
 import { BoardView } from './BoardView';
 import { ClueView } from './ClueView';
 import { Scoreboard } from './Scoreboard';
 import { ResultsView } from './ResultsView';
 import { AdjustPanel } from './AdjustPanel';
-
-/** What Esc does right now on the clue screen (mirrors useHostKeys), or null if nothing. */
-function escapeLabel(active: ActiveTile): string | null {
-  if (active.answerRevealed) return active.selectedPlayerId ? 'unselect' : 'no one';
-  if (active.selectedPlayerId || active.buzzed) return 'cancel buzz';
-  return active.wrongPlayerIds.length === 0 ? 'back to board' : null;
-}
 
 interface Props {
   state: GameState;
@@ -26,7 +20,7 @@ interface Props {
 
 export function GameScreen({ state, canUndo, dispatch, onExit, onRematch }: Props) {
   const [adjusting, setAdjusting] = useState(false);
-  const escLabel = state.active ? escapeLabel(state.active) : null;
+  const escLabel = state.active ? (escapeAction(state.active, 0)?.label ?? null) : null;
 
   return (
     <div className="game">
@@ -61,17 +55,36 @@ export function GameScreen({ state, canUndo, dispatch, onExit, onRematch }: Prop
       {state.phase !== 'results' && <Scoreboard state={state} dispatch={dispatch} />}
 
       <footer className="shortcuts">
-        {state.phase === 'clue' ? (
+        {state.active?.stage === 'cheese' && (
           <>
-            <kbd>Space</kbd> buzz · <kbd>1</kbd>–<kbd>{state.players.length}</kbd> who buzzed ·{' '}
-            <kbd>C</kbd> correct · <kbd>W</kbd> wrong · <kbd>Enter</kbd> reveal answer ·{' '}
-            {escLabel && (
+            <kbd>Space</kbd> continue ·{' '}
+          </>
+        )}
+        {state.active?.stage === 'handoff' && (
+          <>
+            <kbd>1</kbd>–<kbd>{state.players.length}</kbd> who gets the clue ·{' '}
+          </>
+        )}
+        {state.active?.stage === 'wager' && (
+          <>
+            type the wager, <kbd>Enter</kbd> to lock it in ·{' '}
+          </>
+        )}
+        {state.active?.stage === 'clue' && (
+          <>
+            {!state.active.soloPlayerId && (
               <>
-                <kbd>Esc</kbd> {escLabel} ·{' '}
+                <kbd>Space</kbd> buzz · <kbd>1</kbd>–<kbd>{state.players.length}</kbd> who buzzed ·{' '}
               </>
             )}
+            <kbd>C</kbd> correct · <kbd>W</kbd> wrong · <kbd>Enter</kbd> reveal answer ·{' '}
           </>
-        ) : null}
+        )}
+        {escLabel && (
+          <>
+            <kbd>Esc</kbd> {escLabel} ·{' '}
+          </>
+        )}
         <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo · <kbd>F</kbd> fullscreen
       </footer>
     </div>
