@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { randomWheelSegment, WHEEL_SEGMENTS } from '../game/cheeses';
 import type { SessionAction } from '../game/history';
 import type { ActiveTile } from '../game/types';
+import { useView } from '../presenter/presenter';
 
 const SLICE = 360 / WHEEL_SEGMENTS.length;
 const SLICE_COLORS = ['var(--cheese)', 'var(--cheese-deep)', 'var(--cheese-light)', 'var(--wax)', 'var(--rind-light)'];
@@ -26,6 +27,7 @@ interface Props {
 /** Cheese Wheel: spin for a multiplier, then play the clue for the new value. */
 export function CheeseWheel({ active, baseValue, dispatch, escButton }: Props) {
   const segment = active.wheelSegment;
+  const audience = useView() === 'audience';
   // A wheel that was already spun (resumed game, undo) shows its result without spinning again.
   const [phase, setPhase] = useState<'idle' | 'spinning' | 'done'>(segment === null ? 'idle' : 'done');
 
@@ -78,22 +80,24 @@ export function CheeseWheel({ active, baseValue, dispatch, escButton }: Props) {
         ) : (
           <p className="stage-title">{phase === 'spinning' ? 'Spinning…' : 'Spin the wheel!'}</p>
         )}
-        <div className="judging">
-          {segment === null ? (
-            <button className="btn btn-primary" autoFocus onClick={spin}>
-              Spin <kbd>Space</kbd>
-            </button>
-          ) : (
-            <button
-              className="btn btn-primary"
-              disabled={phase !== 'done'}
-              onClick={() => dispatch({ type: 'beginClue', at: Date.now() })}
-            >
-              Show the clue <kbd>Space</kbd>
-            </button>
-          )}
-          {escButton}
-        </div>
+        {!audience && (
+          <div className="judging">
+            {segment === null ? (
+              <button className="btn btn-primary" autoFocus onClick={spin}>
+                Spin <kbd>Space</kbd>
+              </button>
+            ) : (
+              <button
+                className="btn btn-primary"
+                disabled={phase !== 'done'}
+                onClick={() => dispatch({ type: 'beginClue', at: Date.now() })}
+              >
+                Show the clue <kbd>Space</kbd>
+              </button>
+            )}
+            {escButton}
+          </div>
+        )}
       </div>
     </div>
   );

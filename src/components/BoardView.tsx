@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react';
 import { CHEESES, PARMESAN_GROWTH, PARMESAN_MAX, parmesanValue } from '../game/cheeses';
 import type { SessionAction } from '../game/history';
 import type { GameState } from '../game/types';
+import { useView } from '../presenter/presenter';
 
 interface Props {
   state: GameState;
@@ -12,6 +13,8 @@ export function BoardView({ state, dispatch }: Props) {
   const { board, tiles, players, controlPlayerId } = state;
   const picker = players.find((p) => p.id === controlPlayerId);
   const rows = Math.max(...board.categories.map((c) => c.clues.length));
+  // On the TV the tiles are just pictures; the host picks from their own window.
+  const Tile = useView() === 'audience' ? 'div' : 'button';
 
   return (
     <div className="board-wrap">
@@ -44,11 +47,11 @@ export function BoardView({ state, dispatch }: Props) {
             // 0 when fresh, 1 once it has reached its maximum value.
             const ripeness = Math.min(1, (agedTurns * PARMESAN_GROWTH) / (PARMESAN_MAX - 1));
             return (
-              <button
+              <Tile
                 key={`${ci}-${ri}`}
                 className={`tile${played ? ' tile-played' : ''}${aging ? ' tile-parmesan' : ''}`}
                 style={{ gridColumn: ci + 1, gridRow: ri + 2, ...(aging ? { '--ripeness': ripeness } : {}) } as CSSProperties}
-                disabled={played}
+                disabled={Tile === 'button' && played}
                 aria-label={`${cat.name} for ${value}${aging ? ' (Aged Parmesan)' : ''}${played ? ' (played)' : ''}`}
                 title={aging ? `Aged Parmesan: ${agedTurns} turn${agedTurns === 1 ? '' : 's'} old` : undefined}
                 onClick={() => dispatch({ type: 'selectTile', categoryIndex: ci, clueIndex: ri, at: Date.now() })}
@@ -70,7 +73,7 @@ export function BoardView({ state, dispatch }: Props) {
                 ) : (
                   clue.value
                 )}
-              </button>
+              </Tile>
             );
           }),
         )}

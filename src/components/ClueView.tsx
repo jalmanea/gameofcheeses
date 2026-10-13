@@ -4,6 +4,7 @@ import type { SessionAction } from '../game/history';
 import { escapeAction, hasAnswered, maxWager, stakeValue } from '../game/reducer';
 import type { ActiveTile, GameState, Player } from '../game/types';
 import { useNow } from '../useNow';
+import { useView } from '../presenter/presenter';
 import { ClueTimerView } from './ClueTimerView';
 import { CheeseCard } from './CheeseCard';
 import { CheeseWheel } from './CheeseWheel';
@@ -19,7 +20,8 @@ export function ClueView({ state, active, dispatch }: Props) {
   const category = state.board.categories[active.categoryIndex];
   const cheese = active.cheese ? CHEESES[active.cheese] : null;
   const picker = state.players.find((p) => p.id === active.pickerId);
-  const esc = escapeAction(active, 0);
+  const audience = useView() === 'audience';
+  const esc = audience ? null : escapeAction(active, 0);
   const escButton = esc && (
     <button className="btn btn-ghost" onClick={() => dispatch(escapeAction(active, Date.now())?.action ?? esc.action)}>
       {esc.label === 'back to board' ? '← Back to board' : capitalize(esc.label)} <kbd>Esc</kbd>
@@ -41,16 +43,27 @@ export function ClueView({ state, active, dispatch }: Props) {
       {active.stage === 'cheese' && cheese && (
         <div className="cheese-reveal">
           <CheeseCard cheese={cheese} big />
-          <div className="judging">
-            <button className="btn btn-primary" autoFocus onClick={() => dispatch({ type: 'dismissCheese', at: Date.now() })}>
-              Continue <kbd>Space</kbd>
-            </button>
-            {escButton}
-          </div>
+          {!audience && (
+            <div className="judging">
+              <button className="btn btn-primary" autoFocus onClick={() => dispatch({ type: 'dismissCheese', at: Date.now() })}>
+                Continue <kbd>Space</kbd>
+              </button>
+              {escButton}
+            </div>
+          )}
         </div>
       )}
 
-      {active.stage === 'wager' && picker && (
+      {active.stage === 'wager' && picker && audience && (
+        <div className="stage-panel">
+          <p className="stage-title">
+            <span className="control-dot" style={{ background: picker.color }} /> {picker.name}, how much do you wager?
+          </p>
+          <p>Anything from 0 to {maxWager(state)}. You'll answer alone.</p>
+        </div>
+      )}
+
+      {active.stage === 'wager' && picker && !audience && (
         <WagerStep picker={picker} max={maxWager(state)} defaultValue={category.clues[active.clueIndex].value} dispatch={dispatch} escButton={escButton} />
       )}
 
@@ -60,21 +73,23 @@ export function ClueView({ state, active, dispatch }: Props) {
             <span className="control-dot" style={{ background: picker.color }} /> {picker.name} can't answer this one.
           </p>
           <p>Who gets the clue? They'll answer it alone.</p>
-          <div className="judging">
-            {state.players.map((p, i) =>
-              p.id === picker.id ? null : (
-                <button
-                  key={p.id}
-                  className="btn"
-                  style={{ borderColor: p.color }}
-                  onClick={() => dispatch({ type: 'handOff', playerId: p.id, at: Date.now() })}
-                >
-                  {p.name} <kbd>{i + 1}</kbd>
-                </button>
-              ),
-            )}
-            {escButton}
-          </div>
+          {!audience && (
+            <div className="judging">
+              {state.players.map((p, i) =>
+                p.id === picker.id ? null : (
+                  <button
+                    key={p.id}
+                    className="btn"
+                    style={{ borderColor: p.color }}
+                    onClick={() => dispatch({ type: 'handOff', playerId: p.id, at: Date.now() })}
+                  >
+                    {p.name} <kbd>{i + 1}</kbd>
+                  </button>
+                ),
+              )}
+              {escButton}
+            </div>
+          )}
         </div>
       )}
 
@@ -165,6 +180,7 @@ function CluePlay({ state, active, dispatch, escButton }: Props & { escButton: R
   const correctNames = state.players.filter((p) => active.correctPlayerIds.includes(p.id)).map((p) => p.name);
   // Clocks are paused while a player is selected, so this is the value they're playing for.
   const stake = stakeValue(active, Date.now());
+  const view = useView();
 
   return (
     <>
@@ -172,7 +188,7 @@ function CluePlay({ state, active, dispatch, escButton }: Props & { escButton: R
         <ClueTimerView timer={active.timer} totalSeconds={state.settings.timerSeconds} />
       )}
 
-      {questionHidden ? (
+      {questionHidden && view !== 'host' ? (
         <div className="clue-text clue-buzzed" aria-live="polite">
           {selected ? (
             <span>
@@ -185,59 +201,79 @@ function CluePlay({ state, active, dispatch, escButton }: Props & { escButton: R
       ) : (
         <p className="clue-text">{clue.clue}</p>
       )}
+      {questionHidden && view === 'host' && <p className="host-note">📺 The question is hidden on the TV while they answer.</p>}
 
       <div className="clue-answer">
         {active.answerRevealed ? (
           <p className="answer-text">{clue.answer}</p>
-        ) : (
-          <button className="btn btn-ghost" onClick={() => dispatch({ type: 'revealAnswer', at: Date.now() })}>
-            Reveal answer <kbd>Enter</kbd>
-          </button>
+        ) : view === 'audience' ? null : (
+          <>
+            {view === 'host' && (
+              <p className="host-answer">
+                <span className="host-only">Only you can see this</span> {clue.answer}
+              </p>
+            )}
+            <button className="btn btn-ghost" onClick={() => dispatch({ type: 'revealAnswer', at: Date.now() })}>
+              {view === 'host' ? 'Show the answer on the TV' : 'Reveal answer'} <kbd>Enter</kbd>
+            </button>
+          </>
         )}
       </div>
 
       {correctNames.length > 0 && <p className="judging-note">✓ Correct so far: {correctNames.join(', ')}</p>}
 
-      <div className="judging">
-        {selected ? (
-          <>
+      {view === 'audience' ? (
+        selected &&
+        !questionHidden && (
+          <div className="judging">
             <span className="judging-label">
               <span className="control-dot" style={{ background: selected.color }} />
-              {selected.name} {solo ? 'answers alone' : 'answers'}:
+              {selected.name} {solo ? 'answers alone' : 'answers'}
             </span>
-            <button className="btn btn-correct" onClick={() => dispatch({ type: 'markCorrect', at: Date.now() })}>
-              ✓ Correct +{stake}
-              {active.cheese === 'feta' ? ' + steal' : ''} <kbd>C</kbd>
-            </button>
-            <button className="btn btn-wrong" onClick={() => dispatch({ type: 'markWrong', at: Date.now() })}>
-              ✗ Wrong {active.cheese === 'swiss' ? '(no penalty)' : `−${stake}`} <kbd>W</kbd>
-            </button>
-            {escButton}
-          </>
-        ) : questionHidden ? (
-          <>
-            <span className="judging-label">Who buzzed first? Click a player below or press their number.</span>
-            {escButton}
-          </>
-        ) : (
-          <>
-            {active.answerRevealed || everyoneDone ? (
+          </div>
+        )
+      ) : (
+        <div className="judging">
+          {selected ? (
+            <>
               <span className="judging-label">
-                {everyoneDone
-                  ? solo
-                    ? `${solo.name} has answered.`
-                    : 'Everyone has answered.'
-                  : 'Click a player or press their number to judge.'}
+                <span className="control-dot" style={{ background: selected.color }} />
+                {selected.name} {solo ? 'answers alone' : 'answers'}:
               </span>
-            ) : (
-              <button className="btn btn-primary" onClick={() => dispatch({ type: 'buzz', at: Date.now() })}>
-                Buzz! <kbd>Space</kbd>
+              <button className="btn btn-correct" onClick={() => dispatch({ type: 'markCorrect', at: Date.now() })}>
+                ✓ Correct +{stake}
+                {active.cheese === 'feta' ? ' + steal' : ''} <kbd>C</kbd>
               </button>
-            )}
-            {escButton ?? <span className="hint">Reveal the answer to close this clue.</span>}
-          </>
-        )}
-      </div>
+              <button className="btn btn-wrong" onClick={() => dispatch({ type: 'markWrong', at: Date.now() })}>
+                ✗ Wrong {active.cheese === 'swiss' ? '(no penalty)' : `−${stake}`} <kbd>W</kbd>
+              </button>
+              {escButton}
+            </>
+          ) : questionHidden ? (
+            <>
+              <span className="judging-label">Who buzzed first? Click a player below or press their number.</span>
+              {escButton}
+            </>
+          ) : (
+            <>
+              {active.answerRevealed || everyoneDone ? (
+                <span className="judging-label">
+                  {everyoneDone
+                    ? solo
+                      ? `${solo.name} has answered.`
+                      : 'Everyone has answered.'
+                    : 'Click a player or press their number to judge.'}
+                </span>
+              ) : (
+                <button className="btn btn-primary" onClick={() => dispatch({ type: 'buzz', at: Date.now() })}>
+                  Buzz! <kbd>Space</kbd>
+                </button>
+              )}
+              {escButton ?? <span className="hint">Reveal the answer to close this clue.</span>}
+            </>
+          )}
+        </div>
+      )}
     </>
   );
 }

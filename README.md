@@ -1,17 +1,18 @@
 # Game of Cheeses
 
-A cheese-themed, Jeopardy-style quiz game for one screen, run by a host. See [SPEC.md](SPEC.md)
+A cheese-themed, Jeopardy-style quiz game for one laptop and a TV, run by a host. See [SPEC.md](SPEC.md)
 for the full design. Done so far: **milestone 1** (playable core: players, scoring, undo, auto-save, results),
 **milestone 2** (board library, editor, JSON import/export), **milestone 3** (cheeses: reveal
-splash, Cheese Guide, and Gouda, Swiss, Limburger, Brie, Mozzarella, Feta) and **milestone 4**
-(Aged Parmesan, Blue cheese, Cheese Wheel and the Cheese Platter survey round).
+splash, Cheese Guide, and Gouda, Swiss, Limburger, Brie, Mozzarella, Feta), **milestone 4**
+(Aged Parmesan, Blue cheese, Cheese Wheel and the Cheese Platter survey round) and **milestone 5**
+(presenter mode: a TV window for the players and a host view with the answers).
 
 ## Run
 
 ```bash
 npm install
 npm run dev     # start the dev server
-npm test        # reducer unit tests
+npm test        # unit tests
 npm run build   # type-check + production build
 ```
 
@@ -61,6 +62,24 @@ from, and lets you fix a cheese on a specific clue. At game setup the host can s
 the board's cheeses for that game. Played tiles show the cheese they hid. The **Cheese Guide**
 (from the library) lists every cheese.
 
+## Presenter mode (TV window)
+
+During a game, **📺 TV window** in the toolbar opens a second window. Drag it to the TV or
+projector and double-click it (or press `F`) for fullscreen. It shows the board, clues, cheeses,
+the wheel, Platter rounds, scores and results, but no buttons, and answers only once they're
+revealed.
+
+While a TV window is open, the button reads **📺 On the TV** and the host's window becomes the
+host view: the answer to every clue is shown (marked "Only you can see this"), the question stays
+readable after a buzz, and Platter slots show their hidden answers. Close the TV window and the
+host's window goes back to hiding answers (within a few seconds, even if the TV window crashed).
+
+The host's window runs the game; the TV window only mirrors it, so run it all from the host's
+window. Keys pressed while the TV window has the focus are passed on, so the shortcuts below
+still work after clicking on the TV. The two windows talk over `BroadcastChannel`, so they must
+be in the same browser on the same computer. Without a TV window everything works in one window
+as before. If the browser blocks the window, allow pop-ups for the site.
+
 ## Host keyboard controls
 
 | Key | Action |
@@ -90,4 +109,9 @@ adjustment and board-control override.
 - `src/game/persistence.ts` handles the versioned localStorage save
 - `src/boards/` holds pure board editing/validation (`boardOps.ts`), the board file format
   (`boardJson.ts`) and the versioned library storage (`library.ts`)
-- `src/components/` holds the screens; `src/useHostKeys.ts` maps keyboard shortcuts to actions
+- `src/game/hostKeys.ts` maps keyboard shortcuts to actions (pure, so keys from the TV window
+  go through it too); `src/useHostKeys.ts` hooks it up to the window
+- `src/presenter/` holds the TV window link: `link.ts` (the `BroadcastChannel` protocol: state
+  broadcasts, hello/bye/heartbeat, forwarded keys) and `presenter.ts` (React hooks and the
+  view-mode context: `single`, `host` or `audience`)
+- `src/components/` holds the screens; `AudienceScreen.tsx` is the TV window

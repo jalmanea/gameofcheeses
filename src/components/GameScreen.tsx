@@ -8,6 +8,7 @@ import { ClueView } from './ClueView';
 import { Scoreboard } from './Scoreboard';
 import { ResultsView } from './ResultsView';
 import { AdjustPanel } from './AdjustPanel';
+import { openAudienceWindow } from '../presenter/presenter';
 
 interface Props {
   state: GameState;
@@ -16,9 +17,11 @@ interface Props {
   /** Back to the library; the game stays saved and can be resumed. */
   onExit: () => void;
   onRematch: () => void;
+  /** How many TV (audience) windows are showing the game; null if the browser can't do it. */
+  audiences: number | null;
 }
 
-export function GameScreen({ state, canUndo, dispatch, onExit, onRematch }: Props) {
+export function GameScreen({ state, canUndo, dispatch, onExit, onRematch, audiences }: Props) {
   const [adjusting, setAdjusting] = useState(false);
   const escLabel = state.active ? (escapeAction(state.active, 0)?.label ?? null) : null;
 
@@ -39,6 +42,21 @@ export function GameScreen({ state, canUndo, dispatch, onExit, onRematch }: Prop
         <button className="btn btn-small" onClick={toggleFullscreen}>
           ⛶ Fullscreen
         </button>
+        {audiences !== null && (
+          <button
+            className={`btn btn-small${audiences > 0 ? ' btn-on' : ''}`}
+            onClick={() => {
+              if (!openAudienceWindow()) window.alert('The browser blocked the TV window. Allow pop-ups for this site and try again.');
+            }}
+            title={
+              audiences > 0
+                ? 'The TV window is showing the game; this window shows the answers. Click to bring it to the front.'
+                : 'Open a second window for the TV or projector. This window then becomes the host view, with the answers.'
+            }
+          >
+            📺 {audiences > 0 ? 'On the TV' : 'TV window'}
+          </button>
+        )}
         <button className="btn btn-small" onClick={onExit} title="The game is saved; resume it from the library">
           Exit to library
         </button>
@@ -46,13 +64,7 @@ export function GameScreen({ state, canUndo, dispatch, onExit, onRematch }: Prop
 
       {adjusting && <AdjustPanel state={state} dispatch={dispatch} onClose={() => setAdjusting(false)} />}
 
-      <main className="stage">
-        {state.phase === 'board' && <BoardView state={state} dispatch={dispatch} />}
-        {state.phase === 'clue' && state.active && <ClueView state={state} active={state.active} dispatch={dispatch} />}
-        {state.phase === 'results' && <ResultsView state={state} onExit={onExit} onRematch={onRematch} />}
-      </main>
-
-      {state.phase !== 'results' && <Scoreboard state={state} dispatch={dispatch} />}
+      <GameStage state={state} dispatch={dispatch} onExit={onExit} onRematch={onRematch} />
 
       <footer className="shortcuts">
         {state.active?.stage === 'cheese' && (
@@ -98,5 +110,20 @@ export function GameScreen({ state, canUndo, dispatch, onExit, onRematch }: Prop
         <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo · <kbd>F</kbd> fullscreen
       </footer>
     </div>
+  );
+}
+
+/** The board, clue or results, and the scores. Shared by the host's window and the TV window. */
+export function GameStage({ state, dispatch, onExit, onRematch }: Pick<Props, 'state' | 'dispatch' | 'onExit' | 'onRematch'>) {
+  return (
+    <>
+      <main className="stage">
+        {state.phase === 'board' && <BoardView state={state} dispatch={dispatch} />}
+        {state.phase === 'clue' && state.active && <ClueView state={state} active={state.active} dispatch={dispatch} />}
+        {state.phase === 'results' && <ResultsView state={state} onExit={onExit} onRematch={onRematch} />}
+      </main>
+
+      {state.phase !== 'results' && <Scoreboard state={state} dispatch={dispatch} />}
+    </>
   );
 }

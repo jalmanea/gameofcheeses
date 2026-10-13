@@ -14,6 +14,7 @@ import { BoardEditor } from './components/BoardEditor';
 import { SetupScreen } from './components/SetupScreen';
 import { GameScreen } from './components/GameScreen';
 import { useHostKeys } from './useHostKeys';
+import { useHostLink, ViewContext } from './presenter/presenter';
 
 type Screen =
   | { kind: 'library' }
@@ -53,7 +54,9 @@ export function App() {
     setStorageError(!saveLibrary(store, next));
   };
 
-  useHostKeys(screen.kind === 'game' ? session : null, dispatch);
+  const forwardKey = useHostKeys(screen.kind === 'game' ? session : null, dispatch);
+  // TV windows show the game while it's on screen here, and a title card otherwise.
+  const presenter = useHostLink(screen.kind === 'game' ? (session?.present ?? null) : null, forwardKey);
 
   /** Goes to game setup, after confirming if that would replace an unfinished game. */
   const playBoard = (board: Board, checkWarnings = true) => {
@@ -136,17 +139,20 @@ export function App() {
     case 'game':
       if (!session) return null;
       return (
-        <GameScreen
-          state={session.present}
-          canUndo={canUndo(session)}
-          dispatch={dispatch}
-          onExit={() => setScreen({ kind: 'library' })}
-          onRematch={() => {
-            // Prefer the library's current version of the board, in case it was edited since.
-            const played = session.present.board;
-            playBoard(boards.find((b) => b.id === played.id) ?? played, false);
-          }}
-        />
+        <ViewContext.Provider value={presenter.audiences > 0 ? 'host' : 'single'}>
+          <GameScreen
+            state={session.present}
+            canUndo={canUndo(session)}
+            dispatch={dispatch}
+            onExit={() => setScreen({ kind: 'library' })}
+            onRematch={() => {
+              // Prefer the library's current version of the board, in case it was edited since.
+              const played = session.present.board;
+              playBoard(boards.find((b) => b.id === played.id) ?? played, false);
+            }}
+            audiences={presenter.supported ? presenter.audiences : null}
+          />
+        </ViewContext.Provider>
       );
   }
 }

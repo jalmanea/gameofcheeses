@@ -1,5 +1,6 @@
 import { getStandings, getWinners } from '../game/reducer';
 import type { GameState } from '../game/types';
+import { useView } from '../presenter/presenter';
 
 function joinNames(names: string[]): string {
   return names.length <= 1 ? names.join('') : `${names.slice(0, -1).join(', ')} & ${names[names.length - 1]}`;
@@ -15,6 +16,7 @@ export function ResultsView({ state, onExit, onRematch }: Props) {
   const standings = getStandings(state.players);
   const winners = getWinners(state.players);
   const winnerIds = new Set(winners.map((w) => w.id));
+  const audience = useView() === 'audience';
 
   return (
     <div className="results">
@@ -34,14 +36,16 @@ export function ResultsView({ state, onExit, onRematch }: Props) {
           </li>
         ))}
       </ol>
-      <div className="row">
-        <button className="btn btn-primary" onClick={onRematch}>
-          Play this board again
-        </button>
-        <button className="btn" onClick={onExit}>
-          Back to library
-        </button>
-      </div>
+      {!audience && (
+        <div className="row">
+          <button className="btn btn-primary" onClick={onRematch}>
+            Play this board again
+          </button>
+          <button className="btn" onClick={onExit}>
+            Back to library
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -337,6 +337,10 @@ kbd {
   overflow-wrap: anywhere;
 }
 .tile {
+  /* Centred whether it's a button (host) or a div (TV window). */
+  display: flex;
+  align-items: center;
+  justify-content: center;
   min-height: 2.5em;
   border: none;
   border-radius: var(--radius);
@@ -1196,4 +1200,88 @@ button.platter-slot:hover:not(:disabled) {
 }
 .platter-points {
   width: 5em;
+}
+
+/* ---------- Presenter mode (TV window + host view) ---------- */
+
+.game-audience {
+  position: relative;
+  user-select: none;
+  /* No toolbar or shortcut bar on the TV, so a little more breathing room. */
+  padding-block: 0.5em;
+}
+.audience-idle {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1em;
+  text-align: center;
+}
+.audience-title {
+  margin: 0 0 0.3em;
+  color: var(--cheese);
+  font-size: clamp(40px, 8vw, 160px);
+  font-weight: 900;
+}
+.game-audience .tile,
+.game-audience .score-card {
+  cursor: default;
+}
+.audience-tip {
+  position: absolute;
+  right: 1em;
+  bottom: 0.5em;
+  margin: 0;
+  padding: 0.3em 0.8em;
+  border-radius: var(--radius);
+  background: var(--rind-mid);
+  font-size: 0.7em;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+/* Things only the host sees, while a TV window shows the game. */
+.clue-answer {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6em;
+}
+.host-answer {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  margin: 0;
+  padding: 0.2em 0.8em;
+  border: 3px dashed var(--wax);
+  border-radius: var(--radius);
+  background: var(--rind);
+  color: var(--cream);
+  font-size: 1.4em;
+  font-weight: 800;
+}
+.host-only {
+  padding: 0.1em 0.5em;
+  border-radius: 6px;
+  background: var(--wax);
+  color: var(--cream);
+  font-size: 0.45em;
+  font-weight: 700;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.host-note {
+  margin: 0;
+  font-size: 0.85em;
+  opacity: 0.8;
+  text-align: center;
+}
+.platter-slot-secret {
+  flex: 1;
+  color: var(--cream);
+  font-size: 0.7em;
+  font-style: italic;
+  opacity: 0.6;
+  text-align: left;
 }

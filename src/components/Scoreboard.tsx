@@ -1,6 +1,7 @@
 import type { SessionAction } from '../game/history';
 import { isOut } from '../game/platter';
 import type { GameAction, GameState } from '../game/types';
+import { useView } from '../presenter/presenter';
 
 interface Props {
   state: GameState;
@@ -13,6 +14,8 @@ interface Props {
  */
 export function Scoreboard({ state, dispatch }: Props) {
   const { players, active, controlPlayerId } = state;
+  const view = useView();
+  const clickable = !!active && view !== 'audience';
 
   return (
     <section className="scoreboard" aria-label="Scores">
@@ -54,7 +57,7 @@ export function Scoreboard({ state, dispatch }: Props) {
             {active?.stage === 'handoff' && p.id === active.pickerId && <span className="score-tag">can't answer</span>}
           </>
         );
-        return active ? (
+        return clickable ? (
           <button
             key={p.id}
             className={classes}
