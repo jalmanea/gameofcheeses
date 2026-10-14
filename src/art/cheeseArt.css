@@ -1,0 +1,159 @@
+/* Cheese illustrations: layout + idle animations (only under .ca-anim). */
+
+.ca-root {
+  display: inline-block;
+  vertical-align: middle;
+  overflow: visible;
+  flex-shrink: 0;
+}
+
+.ca-anim .ca-glint,
+.ca-anim .ca-pop,
+.ca-anim .ca-stink,
+.ca-anim .ca-ooze,
+.ca-anim .ca-drip,
+.ca-anim .ca-squish,
+.ca-anim .ca-bob-small,
+.ca-anim .ca-stretch,
+.ca-anim .ca-crumb,
+.ca-anim .ca-twinkle,
+.ca-anim .ca-vein,
+.ca-anim .ca-spin,
+.ca-anim .ca-bob {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* Gouda: a gold glint sweeping across the wax */
+.ca-anim .ca-glint {
+  transform-box: view-box;
+  animation: ca-glint 3.2s ease-in-out infinite;
+}
+@keyframes ca-glint {
+  0% { transform: translateX(0); }
+  55%, 100% { transform: translateX(170px); }
+}
+
+/* Swiss: holes gently pulse */
+.ca-anim .ca-pop {
+  animation: ca-pop 2.8s ease-in-out infinite;
+}
+@keyframes ca-pop {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.18); }
+}
+
+/* Limburger: stink lines rise and fade */
+.ca-anim .ca-stink {
+  transform-origin: 50% 100%;
+  animation: ca-stink 2.4s ease-in-out infinite;
+}
+@keyframes ca-stink {
+  0% { transform: translateY(5px) scaleX(0.85); opacity: 0; }
+  25% { opacity: 1; }
+  60% { transform: translateY(-2px) scaleX(1.15); opacity: 1; }
+  100% { transform: translateY(-8px) scaleX(0.9); opacity: 0; }
+}
+
+/* Brie: slow ooze and drip */
+.ca-anim .ca-ooze {
+  transform-origin: 50% 0%;
+  animation: ca-ooze 3.6s ease-in-out infinite;
+}
+@keyframes ca-ooze {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(1.12); }
+}
+.ca-anim .ca-drip {
+  animation: ca-drip 3.6s ease-in infinite;
+}
+@keyframes ca-drip {
+  0%, 30% { transform: translateY(-8px) scale(0.3); opacity: 0; }
+  50% { transform: translateY(-4px) scale(1); opacity: 1; }
+  85% { transform: translateY(8px) scale(1, 1.15); opacity: 1; }
+  100% { transform: translateY(12px) scale(1.2, 0.6); opacity: 0; }
+}
+
+/* Mozzarella: squish and stretch */
+.ca-anim .ca-squish {
+  transform-origin: 50% 100%;
+  animation: ca-squish 2.2s ease-in-out infinite;
+}
+@keyframes ca-squish {
+  0%, 100% { transform: scale(1, 1); }
+  50% { transform: scale(1.06, 0.93); }
+}
+.ca-anim .ca-bob-small {
+  animation: ca-bob-small 2.2s ease-in-out infinite;
+}
+@keyframes ca-bob-small {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(3px, -4px); }
+}
+.ca-anim .ca-stretch {
+  transform-origin: 50% 100%;
+  animation: ca-stretch 2.2s ease-in-out infinite;
+}
+@keyframes ca-stretch {
+  0%, 100% { transform: scale(1, 1); }
+  50% { transform: scale(0.9, 1.14); }
+}
+
+/* Feta: crumbs dropping */
+.ca-anim .ca-crumb {
+  animation: ca-crumb 2s ease-in infinite;
+}
+@keyframes ca-crumb {
+  0% { transform: translateY(-14px) rotate(0deg); opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translateY(10px) rotate(90deg); opacity: 0; }
+}
+
+/* Parmesan: crystals twinkle */
+.ca-anim .ca-twinkle {
+  animation: ca-twinkle 3s ease-in-out infinite;
+}
+@keyframes ca-twinkle {
+  0%, 100% { transform: scale(0.6) rotate(0deg); opacity: 0.5; }
+  50% { transform: scale(1.25) rotate(45deg); opacity: 1; }
+}
+
+/* Blue: veins shimmer */
+.ca-anim .ca-vein {
+  animation: ca-vein 3.4s ease-in-out infinite;
+}
+.ca-anim .ca-vein-b {
+  animation-delay: -1.7s;
+}
+@keyframes ca-vein {
+  0%, 100% { opacity: 1; filter: saturate(1); }
+  50% { opacity: 0.55; filter: saturate(1.8) brightness(1.25); }
+}
+
+/* Cheese Wheel: slow spin */
+.ca-anim .ca-spin {
+  animation: ca-spin 14s linear infinite;
+}
+@keyframes ca-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Platter: items bob */
+.ca-anim .ca-bob {
+  animation: ca-bob 2.4s ease-in-out infinite;
+}
+@keyframes ca-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ca-anim,
+  .ca-anim * {
+    animation: none !important;
+  }
+  .ca-anim .ca-glint {
+    display: none;
+  }
+}
