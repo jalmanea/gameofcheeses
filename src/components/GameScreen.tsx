@@ -9,6 +9,7 @@ import { Scoreboard } from './Scoreboard';
 import { ResultsView } from './ResultsView';
 import { AdjustPanel } from './AdjustPanel';
 import { openAudienceWindow } from '../presenter/presenter';
+import { useGameSounds, useSoundSetting } from '../sound/useSounds';
 
 interface Props {
   state: GameState;
@@ -23,6 +24,7 @@ interface Props {
 
 export function GameScreen({ state, canUndo, dispatch, onExit, onRematch, audiences }: Props) {
   const [adjusting, setAdjusting] = useState(false);
+  const [sound, setSound] = useSoundSetting();
   const escLabel = state.active ? (escapeAction(state.active, 0)?.label ?? null) : null;
 
   return (
@@ -38,6 +40,14 @@ export function GameScreen({ state, canUndo, dispatch, onExit, onRematch, audien
           aria-expanded={adjusting}
         >
           ± Scores
+        </button>
+        <button
+          className="btn btn-small"
+          onClick={() => setSound(!sound)}
+          aria-pressed={sound}
+          title={sound ? 'Sound is on (it plays on the TV window when one is open)' : 'Sound is off'}
+        >
+          {sound ? '🔊 Sound' : '🔇 Muted'}
         </button>
         <button className="btn btn-small" onClick={toggleFullscreen}>
           ⛶ Fullscreen
@@ -115,6 +125,7 @@ export function GameScreen({ state, canUndo, dispatch, onExit, onRematch, audien
 
 /** The board, clue or results, and the scores. Shared by the host's window and the TV window. */
 export function GameStage({ state, dispatch, onExit, onRematch }: Pick<Props, 'state' | 'dispatch' | 'onExit' | 'onRematch'>) {
+  useGameSounds(state);
   return (
     <>
       <main className="stage">

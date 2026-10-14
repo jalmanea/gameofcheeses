@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { toKeyPress } from '../game/hostKeys';
 import { toggleFullscreen } from '../fullscreen';
 import { useAudienceLink, ViewContext } from '../presenter/presenter';
+import { SoundOutputContext } from '../sound/useSounds';
 import { GameStage } from './GameScreen';
 
 const ignore = () => {};
@@ -56,7 +57,9 @@ export function AudienceScreen() {
     <div className="game game-audience" onDoubleClick={toggleFullscreen}>
       {state ? (
         <ViewContext.Provider value="audience">
-          <GameStage state={state} dispatch={ignore} onExit={ignore} onRematch={ignore} />
+          <SoundOutputContext.Provider value>
+            <GameStage state={state} dispatch={ignore} onExit={ignore} onRematch={ignore} />
+          </SoundOutputContext.Provider>
         </ViewContext.Provider>
       ) : (
         <div className="audience-idle">

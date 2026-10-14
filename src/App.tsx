@@ -15,6 +15,7 @@ import { SetupScreen } from './components/SetupScreen';
 import { GameScreen } from './components/GameScreen';
 import { useHostKeys } from './useHostKeys';
 import { useHostLink, ViewContext } from './presenter/presenter';
+import { SoundOutputContext } from './sound/useSounds';
 
 type Screen =
   | { kind: 'library' }
@@ -140,18 +141,21 @@ export function App() {
       if (!session) return null;
       return (
         <ViewContext.Provider value={presenter.audiences > 0 ? 'host' : 'single'}>
-          <GameScreen
-            state={session.present}
-            canUndo={canUndo(session)}
-            dispatch={dispatch}
-            onExit={() => setScreen({ kind: 'library' })}
-            onRematch={() => {
-              // Prefer the library's current version of the board, in case it was edited since.
-              const played = session.present.board;
-              playBoard(boards.find((b) => b.id === played.id) ?? played, false);
-            }}
-            audiences={presenter.supported ? presenter.audiences : null}
-          />
+          {/* With a TV window open, the sound comes from there instead. */}
+          <SoundOutputContext.Provider value={presenter.audiences === 0}>
+            <GameScreen
+              state={session.present}
+              canUndo={canUndo(session)}
+              dispatch={dispatch}
+              onExit={() => setScreen({ kind: 'library' })}
+              onRematch={() => {
+                // Prefer the library's current version of the board, in case it was edited since.
+                const played = session.present.board;
+                playBoard(boards.find((b) => b.id === played.id) ?? played, false);
+              }}
+              audiences={presenter.supported ? presenter.audiences : null}
+            />
+          </SoundOutputContext.Provider>
         </ViewContext.Provider>
       );
   }
