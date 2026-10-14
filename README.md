@@ -8,6 +8,9 @@ splash, Cheese Guide, and Gouda, Swiss, Limburger, Brie, Mozzarella, Feta), **mi
 (presenter mode: a TV window for the players and a host view with the answers) and **milestone 6**
 (polish: cheese illustrations, animations, sound effects and a results celebration).
 
+**Play it:** https://jalmanea.github.io/gameofcheeses/ (deployed from `main` by GitHub Actions;
+boards and games are saved in your browser).
+
 ## Run
 
 ```bash
