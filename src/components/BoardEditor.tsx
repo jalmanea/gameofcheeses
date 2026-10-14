@@ -26,6 +26,7 @@ import {
 import { canBeRandom, CHEESE_ORDER, CHEESES } from '../game/cheeses';
 import type { Board, CheeseId } from '../game/types';
 import { PlatterEditor } from './PlatterEditor';
+import { CheeseArt } from '../art/CheeseArt';
 
 interface Props {
   /** The board as last saved (or a new blank board). */
@@ -195,7 +196,7 @@ export function BoardEditor({ initial, isNew, onSave, onClose, onTestPlay }: Pro
                     checked={on}
                     onChange={(e) => setBoard(toggleCheeseInPool(board, id, e.target.checked))}
                   />
-                  {c.emoji} {c.name}
+                  <CheeseArt id={id} size="1.2em" /> {c.name}
                 </label>
               );
             })}
@@ -318,7 +319,7 @@ function FixedCheese(props: { cheese: CheeseId | null; editing: boolean; label: 
   if (!editing) {
     return cheese ? (
       <span className="fixed-cheese" title={`Always hides ${CHEESES[cheese].name}`}>
-        {CHEESES[cheese].emoji} {CHEESES[cheese].name}
+        <CheeseArt id={cheese} size="1.2em" /> {CHEESES[cheese].name}
       </span>
     ) : null;
   }

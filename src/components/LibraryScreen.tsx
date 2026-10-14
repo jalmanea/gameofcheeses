@@ -2,6 +2,7 @@ import { useRef, useState, type ChangeEvent } from 'react';
 import { rowCount, summarizeWarnings, validateBoard } from '../boards/boardOps';
 import type { GameSession } from '../game/history';
 import type { Board } from '../game/types';
+import { CheeseWedge } from '../art/CheeseArt';
 
 interface Props {
   boards: Board[];
@@ -41,7 +42,9 @@ export function LibraryScreen(props: Props) {
 
   return (
     <main className="screen library">
-      <h1 className="title">Game of Cheeses</h1>
+      <h1 className="title">
+        <CheeseWedge size="1.1em" /> Game of Cheeses
+      </h1>
       <button className="btn btn-small" onClick={props.onGuide}>
         🧀 Cheese Guide
       </button>

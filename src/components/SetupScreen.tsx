@@ -3,6 +3,7 @@ import { MAX_PLAYERS, MIN_PLAYERS } from '../game/reducer';
 import { boardCheeses, CHEESES } from '../game/cheeses';
 import { DEFAULT_TIMER_SECONDS, TIMER_CHOICES } from '../game/timer';
 import type { Board, GameSettings, PlayerInput } from '../game/types';
+import { CheeseArt, CheeseWedge } from '../art/CheeseArt';
 
 export const PLAYER_COLORS = [
   { name: 'Red', value: '#d62828' },
@@ -60,7 +61,9 @@ export function SetupScreen({ board, initialPlayers, initialSettings, onStart, o
 
   return (
     <main className="screen setup">
-      <h1 className="title">Game of Cheeses</h1>
+      <h1 className="title">
+        <CheeseWedge size="1.1em" /> Game of Cheeses
+      </h1>
       <form onSubmit={submit} className="panel">
         <p className="setup-board">
           <button type="button" className="btn btn-small btn-ghost" onClick={onBack}>
@@ -140,7 +143,7 @@ export function SetupScreen({ board, initialPlayers, initialSettings, onStart, o
                         onChange={(e) => setCheeses((cs) => (e.target.checked ? [...cs, id] : cs.filter((x) => x !== id)))}
                       />
                       <span className="cheese-emoji" aria-hidden>
-                        {c.emoji}
+                        <CheeseArt id={id} size="1.4em" />
                       </span>
                       <strong>{c.name}</strong>
                       <span className="hint">{c.rule}</span>

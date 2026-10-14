@@ -1,4 +1,4 @@
-/* Cheese palette. Visual polish comes in milestone 6; this keeps things readable on a TV. */
+/* Cheese palette, readable on a TV. */
 :root {
   --cheese: #f6c445;
   --cheese-light: #ffe08a;
@@ -1466,7 +1466,9 @@ button.tile:hover:not(:disabled) {
 }
 
 /* Results: confetti behind, standings arrive one by one, the winner glows. */
-.results > :not(.confetti) {
+.results > :not(.confetti),
+.toolbar,
+.shortcuts {
   position: relative;
   z-index: 1;
 }

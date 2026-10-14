@@ -4,6 +4,7 @@ import { toggleFullscreen } from '../fullscreen';
 import { useAudienceLink, ViewContext } from '../presenter/presenter';
 import { SoundOutputContext } from '../sound/useSounds';
 import { GameStage } from './GameScreen';
+import { CheeseWedge } from '../art/CheeseArt';
 
 const ignore = () => {};
 
@@ -64,7 +65,7 @@ export function AudienceScreen() {
       ) : (
         <div className="audience-idle">
           <h1 className="audience-title">
-            <span aria-hidden>🧀</span> Game of Cheeses
+            <CheeseWedge size="1.1em" /> Game of Cheeses
           </h1>
           <p className="hint">
             {host === 'connected'

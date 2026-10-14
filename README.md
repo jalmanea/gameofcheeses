@@ -4,8 +4,9 @@ A cheese-themed, Jeopardy-style quiz game for one laptop and a TV, run by a host
 for the full design. Done so far: **milestone 1** (playable core: players, scoring, undo, auto-save, results),
 **milestone 2** (board library, editor, JSON import/export), **milestone 3** (cheeses: reveal
 splash, Cheese Guide, and Gouda, Swiss, Limburger, Brie, Mozzarella, Feta), **milestone 4**
-(Aged Parmesan, Blue cheese, Cheese Wheel and the Cheese Platter survey round) and **milestone 5**
-(presenter mode: a TV window for the players and a host view with the answers).
+(Aged Parmesan, Blue cheese, Cheese Wheel and the Cheese Platter survey round), **milestone 5**
+(presenter mode: a TV window for the players and a host view with the answers) and **milestone 6**
+(polish: cheese illustrations, animations, sound effects and a results celebration).
 
 ## Run
 
@@ -80,6 +81,20 @@ still work after clicking on the TV. The two windows talk over `BroadcastChannel
 be in the same browser on the same computer. Without a TV window everything works in one window
 as before. If the browser blocks the window, allow pop-ups for the site.
 
+## Look and sound
+
+Every cheese has its own illustration (hand-made inline SVG, no image files), which comes to life
+on the reveal card. Clues zoom in, buzzes slam in, answers rise, Platter answers flip over,
+strikes flash a big ✗, score changes float up from the scoreboard, and the results arrive one by
+one under falling cheese confetti. Animations are turned off when the system asks for reduced
+motion.
+
+Sound effects are original, synthesised in the browser with the Web Audio API: picking a clue, a
+cheese reveal, buzz, correct, wrong, reveal, the wheel's ticks, Platter dings and strikes, time's
+up, and a fanfare at the end. **🔊 Sound** in the toolbar mutes them (remembered in this browser).
+With a TV window open, only the TV window plays them; it needs one click or key press before the
+browser lets it make sound (double-clicking for fullscreen counts).
+
 ## Host keyboard controls
 
 | Key | Action |
@@ -114,4 +129,7 @@ adjustment and board-control override.
 - `src/presenter/` holds the TV window link: `link.ts` (the `BroadcastChannel` protocol: state
   broadcasts, hello/bye/heartbeat, forwarded keys) and `presenter.ts` (React hooks and the
   view-mode context: `single`, `host` or `audience`)
+- `src/game/soundCues.ts` works out which sounds a change of state calls for (pure);
+  `src/sound/` synthesises them and plays them in the window that has the speakers
+- `src/art/CheeseArt.tsx` holds the cheese illustrations and the brand wedge
 - `src/components/` holds the screens; `AudienceScreen.tsx` is the TV window

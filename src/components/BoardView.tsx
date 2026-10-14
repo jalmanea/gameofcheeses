@@ -3,6 +3,7 @@ import { CHEESES, PARMESAN_GROWTH, PARMESAN_MAX, parmesanValue } from '../game/c
 import type { SessionAction } from '../game/history';
 import type { GameState } from '../game/types';
 import { useView } from '../presenter/presenter';
+import { CheeseArt } from '../art/CheeseArt';
 
 interface Props {
   state: GameState;
@@ -59,14 +60,14 @@ export function BoardView({ state, dispatch }: Props) {
                 {/* Once played, a tile shows the cheese it hid (if any). */}
                 {played ? (
                   cheese ? (
-                    <span title={CHEESES[cheese].name}>{CHEESES[cheese].emoji}</span>
+                    <CheeseArt id={cheese} size="1.1em" title={CHEESES[cheese].name} />
                   ) : (
                     ''
                   )
                 ) : aging ? (
                   <>
                     <span className="tile-badge" aria-hidden>
-                      {CHEESES.parmesan.emoji}
+                      <CheeseArt id="parmesan" size="1.3em" />
                     </span>
                     {value}
                   </>

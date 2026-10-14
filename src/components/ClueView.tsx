@@ -9,6 +9,7 @@ import { ClueTimerView } from './ClueTimerView';
 import { CheeseCard } from './CheeseCard';
 import { CheeseWheel } from './CheeseWheel';
 import { PlatterRoundView } from './PlatterRoundView';
+import { CheeseArt } from '../art/CheeseArt';
 
 interface Props {
   state: GameState;
@@ -34,7 +35,7 @@ export function ClueView({ state, active, dispatch }: Props) {
         <span>{category.name}</span>
         {cheese && active.stage !== 'cheese' && (
           <span className="clue-cheese" title={cheese.rule}>
-            <span aria-hidden>{cheese.emoji}</span> {cheese.name}
+            <CheeseArt id={cheese.id} size="1.3em" /> {cheese.name}
           </span>
         )}
         <StakeLabel active={active} printedValue={category.clues[active.clueIndex].value} />

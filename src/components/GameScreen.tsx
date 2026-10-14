@@ -10,6 +10,7 @@ import { ResultsView } from './ResultsView';
 import { AdjustPanel } from './AdjustPanel';
 import { openAudienceWindow } from '../presenter/presenter';
 import { useGameSounds, useSoundSetting } from '../sound/useSounds';
+import { CheeseWedge } from '../art/CheeseArt';
 
 interface Props {
   state: GameState;
@@ -30,7 +31,9 @@ export function GameScreen({ state, canUndo, dispatch, onExit, onRematch, audien
   return (
     <div className="game">
       <header className="toolbar">
-        <span className="toolbar-title">Game of Cheeses</span>
+        <span className="toolbar-title">
+          <CheeseWedge size="1.2em" /> Game of Cheeses
+        </span>
         <button className="btn btn-small" disabled={!canUndo} onClick={() => dispatch({ type: 'undo' })}>
           ↶ Undo
         </button>
