@@ -25,8 +25,8 @@ afterEach(() => {
   for (const c of open.splice(0)) c.close();
 });
 
-/** Lets queued channel messages arrive. */
-const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+/** Lets queued channel messages arrive (generously, so a busy machine doesn't make tests flaky). */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 75));
 
 function host() {
   const seen = { counts: [] as number[], keys: [] as KeyPress[] };

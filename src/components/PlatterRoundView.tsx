@@ -19,9 +19,16 @@ export function PlatterRoundView({ state, active, round, dispatch, escButton }: 
   const turn = state.players.find((p) => p.id === round.turnPlayerId);
   const strikes = turn ? (round.strikes[turn.id] ?? 0) : 0;
   const view = useView();
+  const totalStrikes = Object.values(round.strikes).reduce((sum, n) => sum + n, 0);
 
   return (
     <div className="platter">
+      {/* Keyed by the strike count, so a big ✗ flashes up on each new strike. */}
+      {totalStrikes > 0 && (
+        <div key={totalStrikes} className="strike-flash" aria-hidden>
+          ✗
+        </div>
+      )}
       <p className="platter-prompt">{prompt.prompt}</p>
 
       <ol className="platter-board" style={{ gridTemplateRows: `repeat(${Math.ceil(slots.length / 2)}, auto)` }}>

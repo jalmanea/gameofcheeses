@@ -1285,3 +1285,259 @@ button.platter-slot:hover:not(:disabled) {
   opacity: 0.6;
   text-align: left;
 }
+
+/* ---------- Animations (milestone 6) ---------- */
+
+.clue {
+  animation: clue-in 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.15);
+}
+@keyframes clue-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+.cheese-reveal .cheese-card-big {
+  animation: cheese-pop 0.7s cubic-bezier(0.2, 0.9, 0.3, 1.3);
+}
+@keyframes cheese-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) rotate(-10deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.06) rotate(2deg);
+  }
+}
+
+.clue-buzzed {
+  animation: buzz-in 0.45s ease-out;
+}
+@keyframes buzz-in {
+  0% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(0.95);
+  }
+  55% {
+    transform: translateX(-8px);
+  }
+  70% {
+    transform: translateX(8px);
+  }
+  85% {
+    transform: translateX(-4px);
+  }
+}
+
+.answer-text {
+  animation: rise-in 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.3);
+}
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.6em) scale(0.8);
+  }
+}
+
+.board {
+  animation: fade-in 0.25s ease-out;
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+button.tile {
+  transition:
+    transform 0.12s ease-out,
+    background-color 0.12s;
+}
+button.tile:hover:not(:disabled) {
+  transform: translateY(-3px) scale(1.03);
+}
+
+.platter-board li {
+  perspective: 600px;
+}
+.platter-slot-open {
+  animation: slot-flip 0.5s ease-out;
+}
+@keyframes slot-flip {
+  from {
+    transform: rotateX(90deg);
+  }
+}
+.platter {
+  position: relative;
+}
+.strike-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--wax);
+  font-size: clamp(120px, 22vw, 420px);
+  font-weight: 900;
+  text-shadow: 0 0 0.1em var(--rind);
+  pointer-events: none;
+  opacity: 0;
+  animation: strike-flash 0.9s ease-out;
+}
+@keyframes strike-flash {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  25% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+.score-value {
+  display: inline-block;
+  animation: score-pop 0.45s ease-out;
+}
+@keyframes score-pop {
+  40% {
+    transform: scale(1.35);
+  }
+}
+.score-delta {
+  position: absolute;
+  top: -0.2em;
+  left: 50%;
+  z-index: 1;
+  padding: 0 0.4em;
+  border-radius: 6px;
+  background: var(--correct);
+  color: var(--cream);
+  font-size: 1.1em;
+  font-weight: 900;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: delta-float 1.6s ease-out forwards;
+}
+.score-delta-down {
+  background: var(--wrong);
+}
+@keyframes delta-float {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 0.5em) scale(0.6);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-50%, -0.6em) scale(1.1);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(-50%, -1.2em);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -1.8em);
+  }
+}
+
+.timer-warn .timer-text {
+  animation: pulse 0.5s ease-in-out infinite alternate;
+}
+@keyframes pulse {
+  to {
+    transform: scale(1.2);
+  }
+}
+
+/* Results: confetti behind, standings arrive one by one, the winner glows. */
+.results > :not(.confetti) {
+  position: relative;
+  z-index: 1;
+}
+.results-title {
+  animation: title-in 0.8s cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
+}
+@keyframes title-in {
+  from {
+    opacity: 0;
+    transform: scale(0.2) rotate(-6deg);
+  }
+}
+.standing {
+  animation: standing-in 0.5s ease-out both;
+}
+@keyframes standing-in {
+  from {
+    opacity: 0;
+    transform: translateX(-3em);
+  }
+}
+.standing-winner {
+  box-shadow: 0 0 0 0 var(--cheese-light);
+  animation:
+    standing-in 0.5s ease-out both,
+    winner-glow 1.4s ease-in-out 2s infinite;
+}
+@keyframes winner-glow {
+  50% {
+    box-shadow: 0 0 1.2em 0.2em var(--cheese-light);
+  }
+}
+.confetti {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.confetti-piece {
+  position: absolute;
+  top: -2em;
+  left: var(--x);
+  width: var(--size);
+  height: var(--size);
+  /* A little cheese wedge. */
+  clip-path: polygon(0 100%, 100% 100%, 15% 0);
+  animation: confetti-fall var(--dur) linear var(--delay) infinite;
+}
+.confetti-crumb {
+  width: calc(var(--size) * 0.5);
+  height: calc(var(--size) * 0.5);
+  border-radius: 35%;
+  clip-path: none;
+}
+@keyframes confetti-fall {
+  to {
+    transform: translate(var(--drift), calc(100vh + 4em)) rotate(var(--spin));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .confetti,
+  .strike-flash {
+    display: none;
+  }
+}

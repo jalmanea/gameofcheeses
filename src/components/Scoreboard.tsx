@@ -1,7 +1,36 @@
+import { useEffect, useRef, useState } from 'react';
 import type { SessionAction } from '../game/history';
 import { isOut } from '../game/platter';
-import type { GameAction, GameState } from '../game/types';
+import type { GameAction, GameState, Player } from '../game/types';
 import { useView } from '../presenter/presenter';
+
+interface Delta {
+  key: number;
+  playerId: string;
+  amount: number;
+}
+
+/** Score changes since the last render, each kept for a moment so it can float up. */
+function useScoreDeltas(players: Player[]): Delta[] {
+  const previous = useRef(new Map(players.map((p) => [p.id, p.score])));
+  const nextKey = useRef(0);
+  const [deltas, setDeltas] = useState<Delta[]>([]);
+
+  useEffect(() => {
+    const added: Delta[] = [];
+    for (const p of players) {
+      const amount = p.score - (previous.current.get(p.id) ?? p.score);
+      if (amount !== 0) added.push({ key: nextKey.current++, playerId: p.id, amount });
+    }
+    previous.current = new Map(players.map((p) => [p.id, p.score]));
+    if (added.length === 0) return;
+    setDeltas((ds) => [...ds, ...added]);
+    const keys = new Set(added.map((d) => d.key));
+    window.setTimeout(() => setDeltas((ds) => ds.filter((d) => !keys.has(d.key))), 1600);
+  }, [players]);
+
+  return deltas;
+}
 
 interface Props {
   state: GameState;
@@ -16,6 +45,7 @@ export function Scoreboard({ state, dispatch }: Props) {
   const { players, active, controlPlayerId } = state;
   const view = useView();
   const clickable = !!active && view !== 'audience';
+  const deltas = useScoreDeltas(players);
 
   return (
     <section className="scoreboard" aria-label="Scores">
@@ -49,7 +79,18 @@ export function Scoreboard({ state, dispatch }: Props) {
           <>
             <span className="score-key">{i + 1}</span>
             <span className="score-name">{p.name}</span>
-            <span className={`score-value${p.score < 0 ? ' score-negative' : ''}`}>{p.score}</span>
+            {/* Keyed by score so the pop animation replays on every change. */}
+            <span key={p.score} className={`score-value${p.score < 0 ? ' score-negative' : ''}`}>
+              {p.score}
+            </span>
+            {deltas
+              .filter((d) => d.playerId === p.id)
+              .map((d) => (
+                <span key={d.key} className={`score-delta${d.amount < 0 ? ' score-delta-down' : ''}`} aria-hidden>
+                  {d.amount > 0 ? '+' : '−'}
+                  {Math.abs(d.amount)}
+                </span>
+              ))}
             {wrong && <span className="score-tag">✗ wrong</span>}
             {round && (out ? <span className="score-tag">out</span> : strikes > 0 && <span className="score-tag">{'✗'.repeat(strikes)}</span>)}
             {right && <span className="score-tag">✓ correct</span>}
